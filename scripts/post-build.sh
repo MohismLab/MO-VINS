@@ -4,11 +4,16 @@ TARGET_DIR=$1
 ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 RELEASE=$(cat "$ROOT/out/kernel/include/config/kernel.release")
 test -f "$ROOT/kernel/mohism_imu.ko"
+# Generated rootfs must not retain modules from the previous non-RT kernel.
+for old in "$TARGET_DIR"/lib/modules/*; do
+ [ ! -d "$old" ] || [ "${old##*/}" = "$RELEASE" ] || rm -rf "$old"
+done
 mkdir -p "$TARGET_DIR/lib/modules/$RELEASE/extra"
 cp -a "$ROOT/out/modules/lib/modules/$RELEASE/." "$TARGET_DIR/lib/modules/$RELEASE/"
 cp "$ROOT/kernel/mohism_imu.ko" "$TARGET_DIR/lib/modules/$RELEASE/extra/"
 rm -f "$TARGET_DIR/lib/modules/$RELEASE/build" "$TARGET_DIR/lib/modules/$RELEASE/source"
 "$HOST_DIR/sbin/depmod" -b "$TARGET_DIR" "$RELEASE"
+cp "$ROOT/out/validation/realtime-build.json" "$TARGET_DIR/etc/mohism/kernel-build.json"
 mkdir -p "$TARGET_DIR/userdata"
 mkdir -p "$TARGET_DIR/usr/share/licenses/mohism-vins"
 cp "$ROOT/LICENSE" "$TARGET_DIR/usr/share/licenses/mohism-vins/"

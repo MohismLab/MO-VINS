@@ -12,7 +12,7 @@ sh scripts/build.sh all
 
 `out/host` 为 x86 主机测试，`out/kernel` 为独立内核构建目录，`out/buildroot` 为交叉构建根文件系统，`out/artifacts` 为镜像。SDK 在 `vendor/luckfox-pico`，Buildroot 在 `vendor/buildroot-2023.02.6`，MAVLink 在 `vendor/mavlink`。所有容器以用户UID运行，源工程不要求搬出中文路径。下载使用已配置的HTTP(S)代理（若存在）和host网络；没有代理时直接访问。
 
-若已构建后修改 `src/` 或 `include/`，需清除本地包stamp再构建。可直接运行 `sh scripts/build.sh refresh-rootfs`，然后 `sh scripts/build.sh package`。板级内核改动运行 `sh scripts/build.sh kernel`；U-Boot改动运行 `sh scripts/build.sh uboot`。
+若已构建后修改 `src/` 或 `include/`，需清除本地包stamp再构建。可直接运行 `sh scripts/build.sh refresh-rootfs`，然后 `sh scripts/build.sh package`。板级内核改动运行 `sh scripts/build.sh kernel`，默认构建 PREEMPT_RT；普通内核比较使用 `kernel-standard`。实时检查与延迟测试见 [实时内核](realtime.md)。U-Boot改动运行 `sh scripts/build.sh uboot`。
 
 ## 镜像布局
 

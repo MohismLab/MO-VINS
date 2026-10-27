@@ -13,10 +13,10 @@ MOHISM VINS 是一款双目视觉惯性设备。设备在板端计算深度和�
 | 双目相机 | 双路单色相机，原生分辨率 1280×800 |
 | IMU | SPI 通信，数据就绪中断，驱动节点 `/dev/imu0` |
 | USB | 一路 USB 2.0，工作在 Device 模式 |
-| 系统 | SDK Linux 5.10.160 + Buildroot 2023.02.6 |
+| 系统 | Linux 5.10.160（PREEMPT_RT）+ Buildroot 2023.02.6 |
 | 启动介质 | 当前工程使用 SD 卡 |
 
-内核目前采用普通 Linux 配置，尚未移植 PREEMPT_RT。
+默认构建启用 PREEMPT_RT，IMU 的硬中断入口记录时间戳，SPI 读取在线程中执行。实时补丁已完成 ARM 构建验证，实际调度延迟仍需上板测量。构建和测试方法见 [实时内核](docs/realtime.md)。
 
 双目相机已配置共用 FSIN 外触发。IMU INT1 用于数据就绪中断和时间戳，不能代替相机与 IMU 的共同硬件同步；共同同步电路和驱动仍待完成。当前原理图的 DRC 也尚未通过，电平、相机地址及启动时序需要继续核对。详见 [硬件核对](docs/hardware-review.md) 和 [同步方案](docs/hardware-sync.md)。
 
@@ -110,7 +110,8 @@ sh scripts/build.sh all
 | --- | --- |
 | `sh scripts/build.sh host` | 主机编译和回归测试 |
 | `sh scripts/build.sh sanitize` | ASan / UBSan 检查 |
-| `sh scripts/build.sh kernel` | 内核、设备树和 IMU 驱动 |
+| `sh scripts/build.sh kernel` | PREEMPT_RT 内核、设备树和 IMU 驱动 |
+| `sh scripts/build.sh kernel-standard` | 单独构建普通内核，用于回退比较 |
 | `sh scripts/build.sh uboot` | U-Boot |
 | `sh scripts/build.sh rootfs` | Buildroot 根文件系统 |
 | `sh scripts/build.sh refresh-rootfs` | 修改应用源码后清理本地包并重建根文件系统 |
@@ -151,5 +152,6 @@ sh scripts/build.sh all
 - [USB 调试串口](docs/usb-debug.md)
 - [算法移植记录](docs/vins-fusion-port.md)
 - [性能说明](docs/performance.md)
+- [实时内核](docs/realtime.md)
 
 本仓库用户态程序采用 [GPL-3.0](LICENSE)。内核驱动和板级文件的许可见各文件声明，上游代码保留原有许可证。VINS-Fusion 的版权与移植说明见 [第三方声明](third_party/VINS-Fusion/NOTICE.md)。

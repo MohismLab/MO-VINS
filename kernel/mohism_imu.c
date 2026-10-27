@@ -159,8 +159,11 @@ static int imu_probe(struct spi_device *spi)
  ret = write_reg(spi, 0x12, 0x44);if (ret) goto poweroff;
  ret = write_reg(spi, 0x10, 0x60);if (ret) goto poweroff;
  ret = write_reg(spi, 0x11, 0x60);if (ret) goto poweroff;
+ /* Keep only timestamp capture in hard IRQ context under PREEMPT_RT.
+  * NO_THREAD prevents forced threading of this explicit primary handler;
+  * the SPI transfer still runs in the separately requested IRQ thread. */
  ret = request_threaded_irq(spi->irq, imu_irq, imu_thread,
-   IRQF_TRIGGER_RISING | IRQF_ONESHOT, "mohism-imu", d);
+   IRQF_TRIGGER_RISING | IRQF_ONESHOT | IRQF_NO_THREAD, "mohism-imu", d);
  if (ret) goto poweroff;
  ret = misc_register(&d->misc);if (ret) goto free_irq;
  /* Gyro DRDY only: OR'ing accel and gyro DRDY can leave INT1 asserted

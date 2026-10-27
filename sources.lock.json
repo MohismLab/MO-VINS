@@ -21,5 +21,14 @@
       "vins_estimator/src/featureTracker/feature_tracker.cpp",
       "vins_estimator/src/factor/integration_base.h"
     ]
+  },
+  "preempt_rt": {
+    "kernel_base": "5.10.160",
+    "architecture": "arm",
+    "upstream_rt": "5.10.158-rt77",
+    "upstream_patch_url": "https://www.kernel.org/pub/linux/kernel/projects/rt/5.10/older/patch-5.10.158-rt77.patch.xz",
+    "upstream_patch_sha256": "b5e4a81dcddc5f4bfbf9cc14a25f67994bfa62a7ab154f99559a7a325a5382fa",
+    "patch_sha256": "074e9d7a0c08afc807f538e6fd34d81d0aa8ff96764157003e5df665bde82998",
+    "manifest": "kernel/rt/manifest.json"
   }
 }

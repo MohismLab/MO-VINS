@@ -1,0 +1,22 @@
+#!/bin/sh
+# Read-only target checks. Run cyclictest separately to measure scheduling latency.
+set -eu
+printf 'Kernel: %s\n' "$(uname -r)"
+[ "$(cat /sys/kernel/realtime 2>/dev/null)" = 1 ] || {
+ echo 'FAIL: running kernel does not report PREEMPT_RT' >&2;exit 1;
+}
+zcat /proc/config.gz | grep -qx 'CONFIG_PREEMPT_RT=y'
+zcat /proc/config.gz | grep -qx 'CONFIG_HIGH_RES_TIMERS=y'
+printf 'RT bandwidth: %s / %s us\n' "$(cat /proc/sys/kernel/sched_rt_runtime_us)" "$(cat /proc/sys/kernel/sched_rt_period_us)"
+[ -x /usr/bin/cyclictest ] || { echo 'FAIL: cyclictest missing' >&2;exit 1; }
+echo 'IMU and SPI interrupt counters:'
+grep -E 'mohism-imu|spi' /proc/interrupts || true
+echo 'IRQ thread scheduling (priorities are observational, not changed):'
+for task in /proc/[0-9]*; do
+ [ -r "$task/comm" ] || continue
+ name=$(cat "$task/comm" 2>/dev/null) || continue
+ case "$name" in
+  irq/*|spi*) printf '%s: ' "$name"; chrt -p "${task##*/}" 2>/dev/null || true;;
+ esac
+done
+echo 'PASS: running RT kernel and latency tool present; latency and device operation not assessed.'

@@ -22,6 +22,7 @@ cd /work
 python3 scripts/verify-artifacts.py
 python3 scripts/verify-usb-debug.py
 python3 scripts/verify-performance.py
+python3 scripts/verify-realtime.py --rootfs
 python3 scripts/source-archive.py
 cd out/artifacts
 sha256sum mohism-sd.img env.img uboot.img boot.img rootfs.img userdata.img mohism-vins mohism-vins-source.tar.gz mohism_imu.ko rv1106g3-mohism-vins.dtb rv1106*idblock*.img rv1106*download*.bin > SHA256SUMS
