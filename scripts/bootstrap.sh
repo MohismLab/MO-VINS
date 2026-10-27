@@ -18,7 +18,11 @@ if [ ! -d vendor/mavlink ]; then
  git -C vendor/mavlink fetch --depth 1 origin "$MAVLINK_COMMIT"
  git -C vendor/mavlink checkout --detach FETCH_HEAD
 fi
-test "$(git -C vendor/mavlink rev-parse HEAD)" = "$MAVLINK_COMMIT"
+if [ -d vendor/mavlink/.git ]; then
+ test "$(git -C vendor/mavlink rev-parse HEAD)" = "$MAVLINK_COMMIT"
+else
+ test "$(cat vendor/mavlink/.source-commit)" = "$MAVLINK_COMMIT"
+fi
 if [ -d vendor/luckfox-pico/.git ]; then
  test "$(git -C vendor/luckfox-pico rev-parse HEAD)" = "$SDK_COMMIT"
 else
@@ -27,4 +31,12 @@ fi
 if [ ! -f vendor/buildroot-2023.02.6/Makefile ]; then
  tar -xzf vendor/luckfox-pico/sysdrv/tools/board/buildroot/buildroot-2023.02.6.tar.gz -C vendor
 fi
-echo 'Pinned SDK, MAVLink and Buildroot available.'
+VINS_COMMIT=be55a937a57436548ddfb1bd324bc1e9a9e828e0
+if [ ! -d vendor/VINS-Fusion/.git ]; then
+ git init vendor/VINS-Fusion
+ git -C vendor/VINS-Fusion remote add origin https://github.com/HKUST-Aerial-Robotics/VINS-Fusion.git
+ git -C vendor/VINS-Fusion fetch --depth 1 origin "$VINS_COMMIT"
+ git -C vendor/VINS-Fusion checkout --detach FETCH_HEAD
+fi
+test "$(git -C vendor/VINS-Fusion rev-parse HEAD)" = "$VINS_COMMIT"
+echo 'Pinned SDK, MAVLink, VINS-Fusion and Buildroot available.'

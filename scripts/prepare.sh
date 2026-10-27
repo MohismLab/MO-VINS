@@ -8,6 +8,8 @@ test -f "$SDK/sysdrv/source/kernel/Makefile"
 mkdir -p out/dist/vendor
 cp CMakeLists.txt out/dist/
 cp -a src include tests out/dist/
+cp LICENSE out/dist/
+cp -a third_party host out/dist/
 rm -rf out/dist/vendor/mavlink
 cp -a vendor/mavlink out/dist/vendor/mavlink
 rm -rf out/dist/vendor/mavlink/.git

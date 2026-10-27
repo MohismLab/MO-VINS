@@ -12,5 +12,14 @@
     "repository": "https://github.com/mavlink/c_library_v2.git",
     "commit": "6b4243f0e54b42ddb1e65df7a3a5e8c99d15ec1f"
   },
-  "fsin_reference": "https://github.com/antmicro/tx2-deep-learning-kit-bsp/blob/master/kernel/kernel-4.4/drivers/media/i2c/ov9281_mode_tbls.h"
+  "fsin_reference": "https://github.com/antmicro/tx2-deep-learning-kit-bsp/blob/master/kernel/kernel-4.4/drivers/media/i2c/ov9281_mode_tbls.h",
+  "vins_fusion": {
+    "repository": "https://github.com/HKUST-Aerial-Robotics/VINS-Fusion.git",
+    "commit": "be55a937a57436548ddfb1bd324bc1e9a9e828e0",
+    "license": "GPL-3.0",
+    "ported_components": [
+      "vins_estimator/src/featureTracker/feature_tracker.cpp",
+      "vins_estimator/src/factor/integration_base.h"
+    ]
+  }
 }

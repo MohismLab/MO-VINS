@@ -19,8 +19,9 @@ void Config::validate()const{
  if(!calibrated)throw std::runtime_error("calibration not verified: set calibrated only after stereo/IMU calibration");
  if(width!=320||height!=200||fps!=15)throw std::runtime_error("USB profile is fixed at 960x200 YUYV / 15fps (three 320x200 tiles)");
  if(disparities<=0||disparities%16||disparities>=width)throw std::runtime_error("invalid disparities");
- if(max_skew<=0||max_skew>0.02)throw std::runtime_error("invalid sync threshold");
+ if(!std::isfinite(max_skew)||max_skew<=0||max_skew>0.02||!std::isfinite(imu_offset)||std::abs(imu_offset)>.5)throw std::runtime_error("invalid sensor time calibration");
  for(const auto* k:{&K1,&K2,&R,&Rbc,&Rbi})if(k->rows!=3||k->cols!=3||k->type()!=CV_64F||!cv::checkRange(*k))throw std::runtime_error("invalid calibration matrix");
+ for(const auto* k:{&K1,&K2})if(k->at<double>(0,0)<=0||k->at<double>(1,1)<=0||std::abs(k->at<double>(2,2)-1)>1e-9||std::abs(k->at<double>(2,0))+std::abs(k->at<double>(2,1))>1e-9)throw std::runtime_error("invalid camera intrinsics");
  for(const auto* t:{&T,&tbc})if(t->total()!=3||t->type()!=CV_64F||!cv::checkRange(*t))throw std::runtime_error("invalid calibration translation");
  for(const auto* d:{&D1,&D2})if(d->total()!=5||d->type()!=CV_64F||!cv::checkRange(*d))throw std::runtime_error("requires 5-coefficient pinhole distortion");
  for(const auto* r:{&R,&Rbc,&Rbi})if(cv::norm((*r)*r->t()-cv::Mat::eye(3,3,CV_64F))>1e-5||std::abs(cv::determinant(*r)-1)>1e-5)throw std::runtime_error("extrinsic rotation is not SO(3)");

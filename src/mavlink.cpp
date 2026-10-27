@@ -1,4 +1,5 @@
 #include "mohism.hpp"
+#include "preintegration.hpp"
 #include <common/mavlink.h>
 #include <termios.h>
 #include <fcntl.h>
@@ -14,10 +15,19 @@ namespace mohism {
 struct Mavlink::Impl {
  int fd=-1;std::string path;bool enabled=true;float skew=2;double heartbeat=-1,odom=-1;
  float noise[4]={.1f,.01f,.03f,.02f};
- mavlink_status_t status{};mavlink_message_t rx{};std::deque<std::vector<uint8_t>> tx;size_t offset=0;int listing=-1;
+ struct Pending {std::vector<uint8_t> bytes;uint32_t id;double queued;uint8_t epoch;};
+ mavlink_status_t status{};mavlink_message_t rx{};std::deque<Pending> tx;size_t offset=0;int listing=-1;uint8_t epoch=0;
  const char* names[8]={"VIO_ENABLE","SYNC_MAX_MS","VIO_VALID","FW_VERSION","ACC_NOISE","GYRO_NOISE","POSE_POS_SD","POSE_ROT_SD"};
- float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):100.f;}
- void queue(const mavlink_message_t& m){if(tx.size()>64)return;uint8_t b[MAVLINK_MAX_PACKET_LEN];unsigned n=mavlink_msg_to_send_buffer(b,&m);tx.emplace_back(b,b+n);}
+ float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):200.f;}
+ void queue(const mavlink_message_t& m){if(tx.size()>=64)return;uint8_t b[MAVLINK_MAX_PACKET_LEN];unsigned n=mavlink_msg_to_send_buffer(b,&m);tx.push_back({std::vector<uint8_t>(b,b+n),m.msgid,monotonic(),epoch});}
+ void discardOldOdometry(const Pose& p){
+  for(auto it=tx.begin();it!=tx.end();){
+   // Finish a partly written MAVLink packet; unsent stale epochs must never resume after recovery.
+   bool partial=it==tx.begin()&&offset!=0;
+   if(!partial&&it->id==MAVLINK_MSG_ID_ODOMETRY&&(!p.valid||!enabled||it->epoch!=p.reset_counter||monotonic()-it->queued>.2))it=tx.erase(it);
+   else ++it;
+  }
+ }
  bool target(int sys,int comp)const{return (sys==0||sys==1)&&(comp==0||comp==MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY);}
  void parameter(int i,const Pose& p){mavlink_message_t m;char name[16]{};std::strncpy(name,names[i],16);mavlink_msg_param_value_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,name,value(i,p),MAV_PARAM_TYPE_REAL32,8,i);queue(m);}
  bool save(){
@@ -60,9 +70,13 @@ bool Mavlink::enabled()const{return impl_->enabled;}
 double Mavlink::maxSkew()const{return impl_->skew*.001;}
 std::array<double,4> Mavlink::noise()const{return {impl_->noise[0],impl_->noise[1],impl_->noise[2],impl_->noise[3]};}
 void Mavlink::poll(const Pose& input){
- Pose p=input;p.valid=p.valid&&monotonic()-p.t<.2;
+ Pose p=input;double age=monotonic()-p.t;p.valid=p.valid&&std::isfinite(age)&&age>=0&&age<.2&&finite(p.p)&&finite(p.v)&&rotation(p.R);
  auto& s=*impl_;uint8_t bytes[512];ssize_t n;
- while((n=read(s.fd,bytes,sizeof bytes))>0)for(int i=0;i<n;++i)if(mavlink_parse_char(MAVLINK_COMM_0,bytes[i],&s.rx,&s.status))s.message(p);
+ for(int batch=0;batch<4;++batch){
+  n=read(s.fd,bytes,sizeof bytes);if(n<=0)break;
+  for(int i=0;i<n;++i)if(mavlink_parse_char(MAVLINK_COMM_0,bytes[i],&s.rx,&s.status))s.message(p);
+ }
+ p.valid=p.valid&&s.enabled;s.epoch=p.reset_counter;s.discardOldOdometry(p);
  double now=monotonic();mavlink_message_t m;
  if(now-s.heartbeat>=1){mavlink_msg_heartbeat_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,MAV_TYPE_ONBOARD_CONTROLLER,MAV_AUTOPILOT_INVALID,0,0,p.valid?MAV_STATE_ACTIVE:MAV_STATE_STANDBY);s.queue(m);s.heartbeat=now;}
  if(s.listing>=0&&s.tx.size()<8){s.parameter(s.listing++,p);if(s.listing==8)s.listing=-1;}
@@ -73,9 +87,9 @@ void Mavlink::poll(const Pose& input){
   else{int i=R(1,1)>R(0,0)?1:0;if(R(2,2)>R(i,i))i=2;int j=(i+1)%3,k=(i+2)%3;double a=std::sqrt(1+R(i,i)-R(j,j)-R(k,k))*2;double v[3]{};v[i]=.25*a;v[j]=(R(j,i)+R(i,j))/a;v[k]=(R(k,i)+R(i,k))/a;qw=(R(k,j)-R(j,k))/a;qx=v[0];qy=v[1];qz=v[2];}
   float q[4]={float(qw),float(qx),float(qy),float(qz)},cov[21]{};cov[0]=NAN;
   V3 vb=p.R.t()*p.v;
-  mavlink_msg_odometry_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,uint64_t(p.t*1e6),MAV_FRAME_LOCAL_FRD,MAV_FRAME_BODY_FRD,p.p[0],p.p[1],p.p[2],q,vb[0],vb[1],vb[2],NAN,NAN,NAN,cov,cov,0,MAV_ESTIMATOR_TYPE_VIO,-1);
+  mavlink_msg_odometry_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,uint64_t(p.t*1e6),MAV_FRAME_LOCAL_FRD,MAV_FRAME_BODY_FRD,p.p[0],p.p[1],p.p[2],q,vb[0],vb[1],vb[2],NAN,NAN,NAN,cov,cov,p.reset_counter,MAV_ESTIMATOR_TYPE_VIO,-1);
   s.queue(m);s.odom=now;
  }
- while(!s.tx.empty()){auto& b=s.tx.front();ssize_t written=write(s.fd,b.data()+s.offset,b.size()-s.offset);if(written<=0){if(written<0&&errno!=EAGAIN&&errno!=EINTR){s.tx.clear();s.offset=0;}break;}s.offset+=written;if(s.offset==b.size()){s.tx.pop_front();s.offset=0;}}
+ while(!s.tx.empty()){auto& b=s.tx.front().bytes;ssize_t written=write(s.fd,b.data()+s.offset,b.size()-s.offset);if(written<=0){if(written<0&&errno!=EAGAIN&&errno!=EINTR){s.tx.clear();s.offset=0;}break;}s.offset+=written;if(s.offset==b.size()){s.tx.pop_front();s.offset=0;}}
 }
 }

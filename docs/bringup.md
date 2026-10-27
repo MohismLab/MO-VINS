@@ -53,7 +53,7 @@ U-Boot镜像包含SDK rkbin提供的DDR固件和信任固件；尚未在本板�
 6. 检查 `/dev/imu0`，在静止时验证加速度模长约9.80665m/s²、陀螺接近零，记录样本间隔和flags。详见IMU ABI文档。
 7. 主机 `lsusb -t` 检查USB高速480M、uvcvideo和cdc_acm；运行host工具读参数/改参数，保存左右与16位深度，反复热插拔验证。
 
-服务顺序：`S40mohism-usb` 创建复合设备；`S50mohism-vins` 加载IMU模块、设置FSIN PWM、查找UVC节点，再启动用户态程序。PWM与UVC按sysfs设备身份查找。若启动失败检查程序日志；当前无自动重启监督，需修复原因后手动restart。
+服务顺序：`S40mohism-usb` 创建复合设备；`S50mohism-vins` 加载IMU模块、设置FSIN PWM、查找UVC节点，再启动用户态程序。PWM与UVC按sysfs设备身份查找。运行时相机/IMU故障会使位姿失效、约1秒后重连，并等待静止及视觉预热恢复；串口参数服务继续运行。进程启动失败/崩溃仍没有自动重启监督，需修复原因后手动restart。
 
 ## 标定
 
@@ -74,7 +74,7 @@ python host/calibrate_stereo.py chessboard --columns 9 --rows 6 --square-metres 
 /etc/init.d/S50mohism-vins restart
 ```
 
-启动后保持设备静止至少约0.5秒供208个样本初始化。启动采样波动超阈值或机体前向几乎竖直会拒绝初始化。
+启动后保持设备静止至少约0.5秒供208个样本初始化。启动采样波动超阈值或机体前向几乎竖直会拒绝初始化，并滑动重试。连续3帧视觉更新成功后才报告有效位姿。跟踪中断后也需要静止恢复，主机必须依据ODOMETRY.reset_counter识别新的本地原点。
 
 ## 验收记录
 

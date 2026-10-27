@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-only
 #include "mohism.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
 #include <csignal>
-#include <condition_variable>
 #include <algorithm>
 #include <memory>
-#include <opencv2/imgproc.hpp>
 using namespace mohism;
 static volatile sig_atomic_t interrupted=0;
 static void signal_handler(int){interrupted=1;}
@@ -14,74 +13,64 @@ int main(int argc,char** argv){
  if(argc!=2){std::cerr<<"usage: mohism-vins /etc/mohism/calibration.yml\n";return 2;}
  std::signal(SIGINT,signal_handler);std::signal(SIGTERM,signal_handler);
  try{
- Config cfg=Config::load(argv[1]);cv::setNumThreads(1);
- Mavlink link(cfg.serial,cfg.params);Uvc usb(cfg.uvc);
- if(!cfg.calibrated){
-  std::cerr<<"Calibration is not verified; raw stereo preview, invalid depth/VIO\n";
-  std::unique_ptr<Capture> left,right;
-  try{left=std::make_unique<Capture>(cfg.left,cfg.capture_width,cfg.capture_height,cfg.fps);right=std::make_unique<Capture>(cfg.right,cfg.capture_width,cfg.capture_height,cfg.fps);}
-  catch(const std::exception& e){std::cerr<<"raw preview unavailable: "<<e.what()<<"\n";left.reset();right.reset();}
-  Frame a,b;bool have_a=false,have_b=false;cv::Mat zero=cv::Mat::zeros(200,320,CV_16UC1);
+  Config cfg=Config::load(argv[1]);cv::setNumThreads(1);
+  Mavlink link(cfg.serial,cfg.params);Uvc usb(cfg.uvc);Estimator estimator(cfg);
+  std::unique_ptr<Capture> left,right;std::unique_ptr<Imu> imu;
+  Frame l,r;bool have_l=false,have_r=false;
+  double camera_retry=0,imu_retry=0,last_frame=monotonic(),last_imu=monotonic();
+  std::string status;
+  if(!cfg.calibrated)std::cerr<<"Calibration is not verified; raw stereo preview, invalid depth/VIO\n";
   while(!interrupted){
-   link.poll(Pose{});usb.events();
+   double now=monotonic();
+   link.poll(estimator.pose());usb.events();estimator.enable(link.enabled());estimator.setNoise(link.noise());
+   if(!left&&now>=camera_retry){
+    try{
+     left=std::make_unique<Capture>(cfg.left,cfg.capture_width,cfg.capture_height,cfg.fps);
+     right=std::make_unique<Capture>(cfg.right,cfg.capture_width,cfg.capture_height,cfg.fps);
+     have_l=have_r=false;last_frame=now;
+    }catch(const std::exception& e){
+     left.reset();right.reset();camera_retry=now+1;estimator.reset(e.what());
+    }
+   }
+   if(cfg.calibrated&&link.enabled()&&!imu&&now>=imu_retry){
+    try{imu=std::make_unique<Imu>(cfg.imu);last_imu=now;}
+    catch(const std::exception& e){imu_retry=now+1;estimator.reset(e.what());}
+   }
+   // The kernel queue absorbs image-processing latency; cap draining work so control remains responsive.
+   if(imu){
+    try{
+     for(int n=0;n<512;++n){
+      ImuSample s;if(!imu->read(s))break;
+      s.t+=cfg.imu_offset;s.accel=M3(cfg.Rbi)*s.accel;s.gyro=M3(cfg.Rbi)*s.gyro;
+      estimator.addImu(s);last_imu=now;
+     }
+     if(now-last_imu>.1)throw std::runtime_error("IMU stream timeout");
+    }catch(const std::exception& e){imu.reset();imu_retry=now+1;estimator.reset(e.what());}
+   }
    if(left&&right){
     try{
-     if(!have_a)have_a=left->read(a,5);
-     if(!have_b)have_b=right->read(b,5);
-     if(have_a&&have_b){
-      if(std::abs(a.t-b.t)<=cfg.max_skew){cv::Mat l,r;cv::resize(a.image,l,{320,200},0,0,cv::INTER_AREA);cv::resize(b.image,r,{320,200},0,0,cv::INTER_AREA);usb.publish(l,r,zero);have_a=have_b=false;}
-      else if(a.t<b.t)have_a=false;else have_b=false;
+     // Keep the newest queued camera frame so slow processing cannot build unbounded latency.
+     for(int n=0;n<4;++n){Frame next;if(!left->read(next,n==0&&!have_l?2:0))break;l=std::move(next);have_l=true;}
+     for(int n=0;n<4;++n){Frame next;if(!right->read(next,n==0&&!have_r?2:0))break;r=std::move(next);have_r=true;}
+     if(have_l&&have_r){
+      double skew=std::min(cfg.max_skew,link.maxSkew());
+      if(std::abs(l.t-r.t)>skew){if(l.t<r.t)have_l=false;else have_r=false;}
+      else if(estimator.imuReadyFor((l.t+r.t)*.5)){
+       auto result=estimator.process(l,r);
+       if(!result.left.empty())usb.publish(result.left,result.right,result.depth);
+       have_l=have_r=false;last_frame=now;
+      }
      }
-    }catch(const std::exception& e){std::cerr<<e.what()<<"\n";left.reset();right.reset();}
+     if(now-last_frame>.2&&estimator.pose().valid)estimator.reset("camera stream or synchronization gap");
+     if(now-last_frame>2)throw std::runtime_error("camera stream or synchronization timeout");
+    }catch(const std::exception& e){
+     left.reset();right.reset();have_l=have_r=false;camera_retry=now+1;estimator.reset(e.what());
+    }
    }
+   if(status!=estimator.status()){status=estimator.status();std::cerr<<"estimator: "<<status<<"\n";}
+   link.poll(estimator.pose());usb.events();
    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
-  return 0;
- }
- Imu imu(cfg.imu);
- std::atomic<bool> run{true};std::mutex mutex;std::condition_variable cv;
- std::deque<ImuSample> samples;std::string error;
- std::thread reader([&]{try{while(run){ImuSample s;if(!imu.read(s)){std::this_thread::sleep_for(std::chrono::microseconds(200));continue;}
-  s.t+=cfg.imu_offset;s.accel=M3(cfg.Rbi)*s.accel;s.gyro=M3(cfg.Rbi)*s.gyro;
-  std::lock_guard<std::mutex> lock(mutex);if(samples.size()>=4096)throw std::runtime_error("IMU processing overrun");samples.push_back(s);cv.notify_one();
- }}catch(const std::exception& e){std::lock_guard<std::mutex> lock(mutex);error=e.what();run=false;cv.notify_one();}});
- auto stop=[&]{run=false;if(reader.joinable())reader.join();};
- try{
- Filter filter;std::vector<ImuSample> init;double deadline=monotonic()+5;
- while(init.size()<208&&!interrupted){
-  {std::unique_lock<std::mutex> lock(mutex);cv.wait_for(lock,std::chrono::milliseconds(10),[&]{return !samples.empty()||!error.empty();});if(!error.empty())throw std::runtime_error(error);while(!samples.empty()){init.push_back(samples.front());samples.pop_front();}}
-  link.poll(Pose{});usb.events();if(monotonic()>deadline)throw std::runtime_error("IMU initialization timed out");
- }
- if(interrupted){stop();return 0;}filter.initialize(init);
- Capture left(cfg.left,cfg.capture_width,cfg.capture_height,cfg.fps),right(cfg.right,cfg.capture_width,cfg.capture_height,cfg.fps);
- std::unique_ptr<Vision> vision;Frame l,r;bool have_l=false,have_r=false;Pose pose;
- double last_frame=monotonic();
- while(!interrupted){
-  link.poll(pose);usb.events();
-  {std::lock_guard<std::mutex> lock(mutex);if(!error.empty())throw std::runtime_error(error);}
-  if(!have_l)have_l=left.read(l,10);
-  if(!have_r)have_r=right.read(r,10);
-  if(!have_l||!have_r){if(monotonic()-last_frame>2)throw std::runtime_error("camera stream timeout");continue;}
-  double skew=std::min(cfg.max_skew,link.maxSkew());
-  if(std::abs(l.t-r.t)>skew){if(l.t<r.t)have_l=false;else have_r=false;if(monotonic()-last_frame>2)throw std::runtime_error("stereo synchronization timeout");continue;}
-  double t=(l.t+r.t)*.5;
-  filter.setNoise(link.noise());
-  if(t<=filter.pose().t){have_l=have_r=false;continue;}
-  {std::unique_lock<std::mutex> lock(mutex);
-   if(!cv.wait_for(lock,std::chrono::milliseconds(100),[&]{return (!samples.empty()&&samples.back().t>=t)||!error.empty();}))throw std::runtime_error("IMU did not reach camera timestamp");
-   if(!error.empty())throw std::runtime_error(error);
-   while(!samples.empty()&&samples.front().t<=t){if(!filter.predict(samples.front()))throw std::runtime_error("invalid IMU time gap");samples.pop_front();}
-   if(filter.pose().t<t&&!samples.empty()){ImuSample endpoint=samples.front();endpoint.t=t;if(!filter.predict(endpoint))throw std::runtime_error("invalid frame/IMU timing");}
-  }
-  if(!vision)vision=std::make_unique<Vision>(cfg,filter.pose());
-  auto result=vision->process(l,r);
-  if(!filter.correct(t,result.visual.R,result.visual.p,result.visual.inliers))throw std::runtime_error("visual measurement rejected; reinitialization required");
-  pose=filter.pose();pose.inliers=result.visual.inliers;
-  usb.publish(result.left,result.right,result.depth);usb.events();link.poll(pose);
-  have_l=have_r=false;last_frame=monotonic();
- }
- stop();
- }catch(...){stop();throw;}
  }catch(const std::exception& e){std::cerr<<"mohism-vins: "<<e.what()<<"\n";return 1;}
  return 0;
 }
