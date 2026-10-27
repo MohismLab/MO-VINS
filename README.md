@@ -20,6 +20,8 @@ sh scripts/build.sh all
 
 ## USB 使用
 
+高速开发配置请求原生双目 120fps、USB 60fps、稠密深度 30Hz；实际性能尚未上板验证。配置与带宽限制见 [高帧率与性能](docs/performance.md)，产品未完成项见 [产品交付基线](docs/product-delivery.md)。
+
 U-Boot 提供独立 USB CDC 调试控制台，进入 Linux 时重新枚举；早期 SPL/DDR 日志使用 UART2。连接方式与验证限制见 [USB 调试串口](docs/usb-debug.md)。
 
 USB 是一个物理复合设备，具有 UVC 和两个 CDC ACM 接口。Linux 主机通常得到 `/dev/ttyACM0`（MAVLink）、`/dev/ttyACM1`（调试日志与 Shell）和一个 UVC `/dev/videoN`；设备号会随其他设备变化。`lsusb` 列出物理设备，`lsusb -t` 显示接口驱动。
@@ -34,7 +36,7 @@ python host/mohism.py --serial /dev/ttyACM0 odometry
 python host/mohism.py images --video /dev/videoN --output capture --frames 100
 ```
 
-UVC 首版固定为 **960×200 YUYV，15fps**：三块 320×200 分别传左灰度、右灰度、16 位毫米深度。深度占第三块的全部原始字节，**不能经过 YUYV→RGB 转换或有损压缩**；主机工具关闭颜色转换，保存左右 8 位 PNG 与深度 16 位 PNG。详见 [USB 与 MAVLink 协议](docs/protocol.md)。这是一条自定义打包的标准 UVC 视频流，不是三个独立摄像头节点。
+UVC 几何固定为 **960×200 YUYV，支持请求 15/30/60fps**：三块 320×200 分别传左灰度、右灰度、16 位毫米深度。深度占第三块的全部原始字节，**不能经过 YUYV→RGB 转换或有损压缩**；主机工具关闭颜色转换，保存左右 8 位 PNG 与深度 16 位 PNG。详见 [USB 与 MAVLink 协议](docs/protocol.md)。这是一条自定义打包的标准 UVC 视频流，不是三个独立摄像头节点。
 
 ## 标定和算法
 

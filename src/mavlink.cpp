@@ -13,13 +13,20 @@
 #include <cerrno>
 namespace mohism {
 struct Mavlink::Impl {
- int fd=-1;std::string path;bool enabled=true;float skew=2;double heartbeat=-1,odom=-1;
+ int fd=-1;std::string path;bool enabled=true;float skew=2;double heartbeat=-1,last_pose_t=-1;uint8_t last_pose_epoch=0;
  float noise[4]={.1f,.01f,.03f,.02f};
  struct Pending {std::vector<uint8_t> bytes;uint32_t id;double queued;uint8_t epoch;};
  mavlink_status_t status{};mavlink_message_t rx{};std::deque<Pending> tx;size_t offset=0;int listing=-1;uint8_t epoch=0;
  const char* names[8]={"VIO_ENABLE","SYNC_MAX_MS","VIO_VALID","FW_VERSION","ACC_NOISE","GYRO_NOISE","POSE_POS_SD","POSE_ROT_SD"};
- float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):200.f;}
- void queue(const mavlink_message_t& m){if(tx.size()>=64)return;uint8_t b[MAVLINK_MAX_PACKET_LEN];unsigned n=mavlink_msg_to_send_buffer(b,&m);tx.push_back({std::vector<uint8_t>(b,b+n),m.msgid,monotonic(),epoch});}
+ float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):300.f;}
+ void queue(const mavlink_message_t& m){
+  if(m.msgid==MAVLINK_MSG_ID_ODOMETRY){
+   for(auto it=tx.begin();it!=tx.end();){
+    if(it->id==MAVLINK_MSG_ID_ODOMETRY&&!(it==tx.begin()&&offset))it=tx.erase(it);else ++it;
+   }
+  }
+  if(tx.size()>=64)return;
+  uint8_t b[MAVLINK_MAX_PACKET_LEN];unsigned n=mavlink_msg_to_send_buffer(b,&m);tx.push_back({std::vector<uint8_t>(b,b+n),m.msgid,monotonic(),epoch});}
  void discardOldOdometry(const Pose& p){
   for(auto it=tx.begin();it!=tx.end();){
    // Finish a partly written MAVLink packet; unsent stale epochs must never resume after recovery.
@@ -29,7 +36,7 @@ struct Mavlink::Impl {
   }
  }
  bool target(int sys,int comp)const{return (sys==0||sys==1)&&(comp==0||comp==MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY);}
- void parameter(int i,const Pose& p){mavlink_message_t m;char name[16]{};std::strncpy(name,names[i],16);mavlink_msg_param_value_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,name,value(i,p),MAV_PARAM_TYPE_REAL32,8,i);queue(m);}
+ void parameter(int i,const Pose& p){mavlink_message_t m;char name[16]{};std::memcpy(name,names[i],std::min(sizeof(name),std::strlen(names[i])));mavlink_msg_param_value_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,name,value(i,p),MAV_PARAM_TYPE_REAL32,8,i);queue(m);}
  bool save(){
   std::string tmp=path+".tmp";FILE* f=fopen(tmp.c_str(),"w");if(!f)return false;
   fprintf(f,"%%YAML:1.0\nVIO_ENABLE: %d\nSYNC_MAX_MS: %.9g\n",enabled?1:0,skew);
@@ -80,7 +87,7 @@ void Mavlink::poll(const Pose& input){
  double now=monotonic();mavlink_message_t m;
  if(now-s.heartbeat>=1){mavlink_msg_heartbeat_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,MAV_TYPE_ONBOARD_CONTROLLER,MAV_AUTOPILOT_INVALID,0,0,p.valid?MAV_STATE_ACTIVE:MAV_STATE_STANDBY);s.queue(m);s.heartbeat=now;}
  if(s.listing>=0&&s.tx.size()<8){s.parameter(s.listing++,p);if(s.listing==8)s.listing=-1;}
- if(p.valid&&now-p.t<.2&&s.enabled&&now-s.odom>=.05){
+ if(p.valid&&now-p.t<.2&&s.enabled&&(p.reset_counter!=s.last_pose_epoch||p.t>s.last_pose_t)){
   // OpenCV Rodrigues -> quaternion. Largest diagonal branch handles rotations near pi.
   auto& R=p.R;double qw,qx,qy,qz,tr=R(0,0)+R(1,1)+R(2,2);
   if(tr>0){double a=std::sqrt(tr+1)*2;qw=.25*a;qx=(R(2,1)-R(1,2))/a;qy=(R(0,2)-R(2,0))/a;qz=(R(1,0)-R(0,1))/a;}
@@ -88,7 +95,7 @@ void Mavlink::poll(const Pose& input){
   float q[4]={float(qw),float(qx),float(qy),float(qz)},cov[21]{};cov[0]=NAN;
   V3 vb=p.R.t()*p.v;
   mavlink_msg_odometry_pack(1,MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY,&m,uint64_t(p.t*1e6),MAV_FRAME_LOCAL_FRD,MAV_FRAME_BODY_FRD,p.p[0],p.p[1],p.p[2],q,vb[0],vb[1],vb[2],NAN,NAN,NAN,cov,cov,p.reset_counter,MAV_ESTIMATOR_TYPE_VIO,-1);
-  s.queue(m);s.odom=now;
+  s.queue(m);s.last_pose_t=p.t;s.last_pose_epoch=p.reset_counter;
  }
  while(!s.tx.empty()){auto& b=s.tx.front().bytes;ssize_t written=write(s.fd,b.data()+s.offset,b.size()-s.offset);if(written<=0){if(written<0&&errno!=EAGAIN&&errno!=EINTR){s.tx.clear();s.offset=0;}break;}s.offset+=written;if(s.offset==b.size()){s.tx.pop_front();s.offset=0;}}
 }

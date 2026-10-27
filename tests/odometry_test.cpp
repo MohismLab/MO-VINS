@@ -26,6 +26,11 @@ int main(){int master=-1,slave=-1;char path[]="/tmp/mohism-odom-XXXXXX";try{
  Pose pose;pose.valid=true;pose.reset_counter=7;pose.p={1,2,3};auto first=poll(pose);
  require(first.size()==1&&first[0].reset_counter==7&&first[0].x==1,"ODOMETRY reset epoch or position lost on wire");
  require(first[0].frame_id==MAV_FRAME_LOCAL_FRD&&first[0].child_frame_id==MAV_FRAME_BODY_FRD,"wrong odometry frames");
+ // Source updates faster than the former 20Hz cap must be transmitted, and
+ // repeated polling of the same estimate must not manufacture extra odometry.
+ pose.t=monotonic();link.poll(pose);require(receive().size()==1,"new pose below former 50ms interval suppressed");
+ link.poll(pose);require(receive().empty(),"duplicate pose timestamp retransmitted");
+ pose.t=0;
  command(0);require(poll(pose).empty()&&!link.enabled(),"disabled estimator still emits odometry");
  command(1);pose.reset_counter=8;auto resumed=poll(pose);require(link.enabled()&&resumed.size()==1&&resumed[0].reset_counter==8,"new epoch not transmitted after enable");
  pose.t=monotonic()-1;require(poll(pose).empty(),"stale pose transmitted");

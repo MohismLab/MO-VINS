@@ -15,7 +15,7 @@ double monotonic();
 M3 expSO3(const V3& w);
 V3 logSO3(const M3& r);
 struct Config {
- int width=320,height=200,fps=15,disparities=64;
+ int width=320,height=200,fps=120,usb_fps=60,depth_fps=30,disparities=64;
  int capture_width=1280,capture_height=800;
  double max_skew=0.002,imu_offset=0;
  std::string left="/dev/video0",right="/dev/video4",imu="/dev/imu0";
@@ -23,6 +23,7 @@ struct Config {
  cv::Mat K1,D1,K2,D2,R,T,Rbc,tbc,Rbi;
  bool calibrated=false;
  static Config load(const std::string& file);
+ void validateProfile() const;
  void validate() const;
 };
 struct ImuSample {double t;V3 accel,gyro;};
@@ -62,10 +63,10 @@ class Vision {
  M3 Rwc_=M3::eye();V3 pwc_={0,0,0};
  double fx_=0,fy_=0,cx_=0,cy_=0,baseline_=0;
  bool started_=false;Pose origin_;
- FeatureTracker tracker_;cv::Ptr<cv::StereoMatcher> matcher_;double previous_t_=-1;
+ FeatureTracker tracker_;cv::Ptr<cv::StereoMatcher> matcher_;double previous_t_=-1,last_depth_t_=-1;
 public:
  explicit Vision(const Config& c,const Pose& origin=Pose{});
- struct Result {cv::Mat left,right,depth;Pose visual;};
+ struct Result {cv::Mat left,right,depth;Pose visual;bool depth_updated=false;};
  Result process(const Frame& left,const Frame& right);
 };
 // A bounded, hardware-independent runtime. A reset starts a new local FRD epoch.
@@ -112,8 +113,10 @@ public:
 class Uvc {
  struct Impl;Impl* impl_;
 public:
- explicit Uvc(const std::string& path);~Uvc();
+ explicit Uvc(const std::string& path,int fps=60);~Uvc();
  void publish(const cv::Mat& left,const cv::Mat& right,const cv::Mat& depth);
+ struct Stats {uint64_t completed=0,repeated=0;bool streaming=false;};
+ Stats stats() const;
  void events();
 };
 }

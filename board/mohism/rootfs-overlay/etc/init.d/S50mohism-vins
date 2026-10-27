@@ -3,6 +3,7 @@ set -eu
 PID=/run/mohism-vins.pid
 case "${1:-start}" in
  start)
+  . /usr/lib/mohism/performance.sh
   [ ! -e "$PID" ] || exit 0
   mkdir -p /userdata
   modprobe mohism_imu
@@ -17,7 +18,7 @@ case "${1:-start}" in
   [ -n "$PWM" ] || { echo 'FSIN PWM1 not found' >&2;exit 1; }
   [ -d "$PWM/pwm0" ] || echo 0 > "$PWM/export"
   echo 0 > "$PWM/pwm0/enable"
-  echo 66666667 > "$PWM/pwm0/period"
+  echo "$FSIN_PERIOD" > "$PWM/pwm0/period"
   echo 10000 > "$PWM/pwm0/duty_cycle"
   echo 1 > "$PWM/pwm0/enable"
   UVC=''
@@ -29,6 +30,9 @@ case "${1:-start}" in
   CAL=/etc/mohism/calibration.yml
   [ ! -f /userdata/calibration.yml ] || CAL=/userdata/calibration.yml
   sed "s|^uvc:.*|uvc: \"$UVC\"|" "$CAL" > /run/mohism.yml
+  # Profile is shared with USB descriptors; override any rates in persisted calibration.
+  sed -i '/^fps:/d;/^usb_fps:/d;/^depth_fps:/d' /run/mohism.yml
+  printf 'fps: %s\nusb_fps: %s\ndepth_fps: %s\n' "$CAPTURE_FPS" "$USB_FPS" "$DEPTH_FPS" >> /run/mohism.yml
   start-stop-daemon -S -b -m -p "$PID" -x /usr/bin/mohism-vins -- /run/mohism.yml
   ;;
  stop)

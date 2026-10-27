@@ -15,5 +15,6 @@ cp -a vendor/mavlink out/dist/vendor/mavlink
 rm -rf out/dist/vendor/mavlink/.git
 cp board/mohism/rv1106g3-mohism-vins.dts "$SDK/sysdrv/source/kernel/arch/arm/boot/dts/"
 python3 scripts/patch_ov9281.py
+python3 scripts/patch-ov9281-highspeed.py
 python3 scripts/patch-usb-console.py
 chmod +x board/mohism/rootfs-overlay/etc/init.d/S40mohism-usb board/mohism/rootfs-overlay/etc/init.d/S50mohism-vins

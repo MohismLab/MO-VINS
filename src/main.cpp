@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "mohism.hpp"
+#include "runtime_stats.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -14,11 +15,11 @@ int main(int argc,char** argv){
  std::signal(SIGINT,signal_handler);std::signal(SIGTERM,signal_handler);
  try{
   Config cfg=Config::load(argv[1]);cv::setNumThreads(1);
-  Mavlink link(cfg.serial,cfg.params);Uvc usb(cfg.uvc);Estimator estimator(cfg);
+  Mavlink link(cfg.serial,cfg.params);Uvc usb(cfg.uvc,cfg.usb_fps);Estimator estimator(cfg);
   std::unique_ptr<Capture> left,right;std::unique_ptr<Imu> imu;
   Frame l,r;bool have_l=false,have_r=false;
   double camera_retry=0,imu_retry=0,last_frame=monotonic(),last_imu=monotonic();
-  std::string status;
+  std::string status;RuntimeStats stats(monotonic());
   if(!cfg.calibrated)std::cerr<<"Calibration is not verified; raw stereo preview, invalid depth/VIO\n";
   while(!interrupted){
    double now=monotonic();
@@ -50,13 +51,16 @@ int main(int argc,char** argv){
    if(left&&right){
     try{
      // Keep the newest queued camera frame so slow processing cannot build unbounded latency.
-     for(int n=0;n<4;++n){Frame next;if(!left->read(next,n==0&&!have_l?2:0))break;l=std::move(next);have_l=true;}
-     for(int n=0;n<4;++n){Frame next;if(!right->read(next,n==0&&!have_r?2:0))break;r=std::move(next);have_r=true;}
+     Frame next_left;if(left->read(next_left,!have_l?2:0)){l=std::move(next_left);have_l=true;stats.left(l.sequence);}
+     Frame next_right;if(right->read(next_right,!have_r?2:0)){r=std::move(next_right);have_r=true;stats.right(r.sequence);}
      if(have_l&&have_r){
       double skew=std::min(cfg.max_skew,link.maxSkew());
       if(std::abs(l.t-r.t)>skew){if(l.t<r.t)have_l=false;else have_r=false;}
       else if(estimator.imuReadyFor((l.t+r.t)*.5)){
+       double processing_start=monotonic();
        auto result=estimator.process(l,r);
+       double processing_end=monotonic();
+       stats.pair((processing_end-processing_start)*1000,(processing_end-(l.t+r.t)*.5)*1000,estimator.pose().valid,result.depth_updated);
        if(!result.left.empty())usb.publish(result.left,result.right,result.depth);
        have_l=have_r=false;last_frame=now;
       }
@@ -69,6 +73,10 @@ int main(int argc,char** argv){
    }
    if(status!=estimator.status()){status=estimator.status();std::cerr<<"estimator: "<<status<<"\n";}
    link.poll(estimator.pose());usb.events();
+   if(stats.due(monotonic())){auto u=usb.stats();
+    if(!stats.write("/run/mohism-status.json",monotonic(),cfg,u.completed,u.repeated,u.streaming))
+     std::cerr<<"cannot write runtime statistics\n";
+   }
    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
  }catch(const std::exception& e){std::cerr<<"mohism-vins: "<<e.what()<<"\n";return 1;}

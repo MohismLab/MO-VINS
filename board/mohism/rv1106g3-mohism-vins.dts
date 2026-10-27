@@ -57,6 +57,7 @@
   rockchip,camera-module-index=<0>;rockchip,camera-module-facing="back";
   rockchip,camera-module-name="MOHISM-LEFT";rockchip,camera-module-lens-name="calibrate-me";
   mohism,external-fsin;
+  mohism,high-speed-readout;
   port {left_out: endpoint {remote-endpoint=<&dphy_left_in>;data-lanes=<1 2>;};};
  };
  ov9281_right: camera@60 {
@@ -68,6 +69,7 @@
   rockchip,camera-module-index=<1>;rockchip,camera-module-facing="back";
   rockchip,camera-module-name="MOHISM-RIGHT";rockchip,camera-module-lens-name="calibrate-me";
   mohism,external-fsin;
+  mohism,high-speed-readout;
   port {right_out: endpoint {remote-endpoint=<&dphy_right_in>;data-lanes=<1 2>;};};
  };
 };

@@ -46,6 +46,19 @@ bool Capture::read(Frame& f,int timeout){
  bool multi=type_==V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;v4l2_plane plane{};v4l2_buffer b{};b.type=type_;b.memory=V4L2_MEMORY_MMAP;
  if(multi){b.m.planes=&plane;b.length=1;}
  if(ioctl(fd_,VIDIOC_DQBUF,&b)<0){if(errno==EAGAIN||errno==EINTR)return false;check(-1,"DQBUF");}
+ // Drain queued buffers before converting RAW10: copying every stale image wastes
+ // bandwidth precisely when the processor is overloaded. Keep one buffer owned.
+ for(size_t i=1;i<memory_.size();++i){
+  v4l2_plane next_plane{};v4l2_buffer next{};next.type=type_;next.memory=V4L2_MEMORY_MMAP;
+  if(multi){next.m.planes=&next_plane;next.length=1;}
+  if(ioctl(fd_,VIDIOC_DQBUF,&next)<0){
+   if(errno==EAGAIN||errno==EINTR)break;
+   int saved=errno;ioctl(fd_,VIDIOC_QBUF,&b);errno=saved;check(-1,"drain DQBUF");
+  }
+  check(ioctl(fd_,VIDIOC_QBUF,&b),"requeue superseded camera buffer");
+  b=next;
+  if(multi){plane=next_plane;b.m.planes=&plane;}
+ }
  if(b.index>=memory_.size())throw std::runtime_error("invalid camera buffer index");
  if((b.flags&V4L2_BUF_FLAG_TIMESTAMP_MASK)!=V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC){ioctl(fd_,VIDIOC_QBUF,&b);throw std::runtime_error("camera timestamps must use CLOCK_MONOTONIC");}
  unsigned bytes=multi?plane.bytesused:b.bytesused,offset=multi?plane.data_offset:0;

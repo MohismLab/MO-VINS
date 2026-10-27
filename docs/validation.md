@@ -55,3 +55,11 @@ U-Boot ARM 构建通过，实际配置启用 MOHISM_USB_CONSOLE、DWC3 gadget、
 内核与 rootfs 已重建；`scripts/verify-usb-debug.py` 核对实际内核/U-Boot 配置、ELF 中控制台与 DM 中断符号、编译 DTB 的 ttyGS1/ttyS2 console、唯一 getty、securetty、ACM 默认不注册 console 及镜像分区大小。host 的 5 项 CTest 与 MAVLink/传输 Python 测试通过。ENV/FIT/SD 镜像内容与哈希验证通过。日志位于忽略目录 `out/validation/usb-*.log`。
 
 以上属于编译和离线验证，没有目标板 USB 枚举、U-Boot 命令交互或 Linux 并发传输实测，不标记实机验收完成。
+
+## 高速开发配置与产品要求（2026-10-28）
+
+0.3.0 请求采集 120fps、USB 60fps、稠密深度 30Hz，SDK 原有 120fps 模式通过板级属性选用；这些不是实测性能。新增 profile 测试使用 120Hz 合成时间戳确认稀疏 VO 连续、30Hz 稠密计算、跳过时深度清零，并检查统计文件的丢帧/序号重启/耗时分位数。PTY 测试确认新估计不再被原 50ms 间隔抑制，重复时间戳不制造消息。6 项 CTest、MAVLink 与传输测试通过；非 PIE ASan/UBSan 的 6 项测试通过。
+
+内核、ARM 应用和根文件系统交叉编译通过；OpenCV 已完整重编译，实际 CMake cache 为 `ENABLE_NEON=ON`、`ENABLE_FAST_MATH=OFF`，编译参数末尾为 `-O3`，应用 Release 同样使用 `-O3 -fno-fast-math`。没有据此推算或宣称目标 CPU 的加速比例。`scripts/verify-performance.py` 核对各档周期/带宽、非法组合拒绝、两颗传感器的编译 DTB 标志及真实编译选项。
+
+现有网表执行 `scripts/check-hardware-sync.py` 预期失败：INT2、反馈与门控仍未连接，FSIN 尚未分离为建议电压域。EDA Bridge 两次查询无客户端；同步改版未写入 EDA，不能声称已做共同硬件同步或新 DRC 通过。产品门槛与 RT 状态记录于 `docs/product-delivery.md`，未测项保持未完成。

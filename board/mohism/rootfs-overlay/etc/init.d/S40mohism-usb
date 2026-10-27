@@ -3,6 +3,7 @@ set -eu
 G=/sys/kernel/config/usb_gadget/mohism
 case "${1:-start}" in
  start)
+  . /usr/lib/mohism/performance.sh
   mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config
   if [ -f "$G/UDC" ] && [ -n "$(cat "$G/UDC")" ]; then exit 0; fi
   [ ! -d "$G" ] || { echo 'Incomplete mohism gadget exists; run stop first' >&2; exit 1; }
@@ -34,11 +35,11 @@ case "${1:-start}" in
   echo 16 > "$F/streaming/uncompressed/u/bBitsPerPixel"
   echo 960 > "$F/streaming/uncompressed/u/960x200/wWidth"
   echo 200 > "$F/streaming/uncompressed/u/960x200/wHeight"
-  echo 46080000 > "$F/streaming/uncompressed/u/960x200/dwMinBitRate"
-  echo 46080000 > "$F/streaming/uncompressed/u/960x200/dwMaxBitRate"
+  echo "$USB_BITRATE" > "$F/streaming/uncompressed/u/960x200/dwMinBitRate"
+  echo "$USB_BITRATE" > "$F/streaming/uncompressed/u/960x200/dwMaxBitRate"
   echo 384000 > "$F/streaming/uncompressed/u/960x200/dwMaxVideoFrameBufferSize"
-  echo 666666 > "$F/streaming/uncompressed/u/960x200/dwDefaultFrameInterval"
-  echo 666666 > "$F/streaming/uncompressed/u/960x200/dwFrameInterval"
+  echo "$USB_INTERVAL" > "$F/streaming/uncompressed/u/960x200/dwDefaultFrameInterval"
+  echo "$USB_INTERVAL" > "$F/streaming/uncompressed/u/960x200/dwFrameInterval"
   mkdir -p "$F/streaming/header/h"
   ln -s ../../uncompressed/u "$F/streaming/header/h/u"
   ln -s ../../header/h "$F/streaming/class/fs/h"

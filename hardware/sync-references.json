@@ -1,0 +1,19 @@
+{
+  "datasheet": {
+    "document": "ST DS12140 Rev 2",
+    "manufacturer_url": "https://www.st.com/resource/en/datasheet/lsm6dso.pdf",
+    "retrieved_copy": "https://raw.githubusercontent.com/sparkfun/SparkFun_Qwiic_6DoF_LSM6DSO/main/Documentation/lsm6dso.pdf",
+    "sha256": "1074e39739595e97705507c23ba0e31d1587884810b18335822444e8b207acb8",
+    "reviewed_tables": [
+      2,
+      3,
+      24,
+      59,
+      67
+    ]
+  },
+  "register_reference": {
+    "repository": "https://github.com/STMicroelectronics/lsm6dso-pid",
+    "commit": "b45daae59111e8856544e7d2b832ad684e3d799e"
+  }
+}

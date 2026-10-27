@@ -33,11 +33,14 @@ Vision::Result Vision::process(const Frame& l,const Frame& r){
   throw std::runtime_error("invalid camera image dimensions or type");
  Result out;cv::Mat a,b;cv::resize(l.image,a,{cfg_.width,cfg_.height},0,0,cv::INTER_AREA);cv::resize(r.image,b,a.size(),0,0,cv::INTER_AREA);
  cv::remap(a,out.left,map1x_,map1y_,cv::INTER_LINEAR);cv::remap(b,out.right,map2x_,map2y_,cv::INTER_LINEAR);
+ out.depth=cv::Mat::zeros(a.size(),CV_16UC1);
+ // Sparse stereo VO runs every processed pair. Dense depth has its own budget.
+ // Uncomputed depth is zero (invalid), never an old map paired with a new image.
+ if(last_depth_t_<0||t-last_depth_t_>=1.0/cfg_.depth_fps-1e-6){
  cv::Mat disparity,reverse,flipped_l,flipped_r;
  matcher_->compute(out.left,out.right,disparity);
  cv::flip(out.left,flipped_l,1);cv::flip(out.right,flipped_r,1);
  matcher_->compute(flipped_r,flipped_l,reverse);cv::flip(reverse,reverse,1);
- out.depth=cv::Mat::zeros(a.size(),CV_16UC1);
  for(int y=0;y<a.rows;++y)for(int x=0;x<a.cols;++x){
   double d=disparity.at<int16_t>(y,x)/16.;int rx=cvRound(x-d);
   if(d<=0||rx<0||rx>=a.cols)continue;
@@ -45,6 +48,8 @@ Vision::Result Vision::process(const Frame& l,const Frame& r){
   if(rd<=0||std::abs(d-rd)>1)continue;
   double mm=fx_*baseline_*1000/d;
   if(mm>=100&&mm<65535)out.depth.at<uint16_t>(y,x)=uint16_t(std::lround(mm));
+ }
+  last_depth_t_=t;out.depth_updated=true;
  }
  const auto& tracks=tracker_.process(out.left,out.right,fx_,baseline_);
  out.visual.t=t;

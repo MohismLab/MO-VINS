@@ -22,7 +22,7 @@ def images(args):
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUYV'))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 200)
-    cap.set(cv2.CAP_PROP_FPS, 15)
+    cap.set(cv2.CAP_PROP_FPS, args.fps)
     if not cap.set(cv2.CAP_PROP_CONVERT_RGB, 0):
         raise RuntimeError('Driver/backend cannot disable RGB conversion; depth would be corrupted')
     if not cap.isOpened():
@@ -96,6 +96,7 @@ def main():
     capture = sub.add_parser('images')
     capture.add_argument('--video', default='/dev/video0')
     capture.add_argument('--output', type=Path, default=Path('capture'))
+    capture.add_argument('--fps', type=int, choices=[15, 30, 60], default=60)
     capture.add_argument('--frames', type=int, default=30)
     capture.add_argument('--show', action='store_true')
     args = parser.parse_args()

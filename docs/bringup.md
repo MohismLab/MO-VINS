@@ -49,7 +49,7 @@ U-Boot镜像包含SDK rkbin提供的DDR固件和信任固件；尚未在本板�
 2. `dmesg` 检查OV9281两次芯片ID识别、LSM6DSO WHO_AM_I、CIF/DPHY链接。当前SID推导地址左0x10/右0x60仍需验证。不要在驱动绑定时使用i2c工具任意写寄存器。
 3. `media-ctl -p` / `v4l2-ctl --list-devices` 确认左右CIF原始节点，按实际节点修改 `/userdata/calibration.yml` 的left/right。默认video0/video4只是SDK常见编号，不是硬件保证。
 4. 检查 `/sys/devices/platform/*cif*/compact_test` 为非compact、低位对齐，采集格式Y10（16位内存容器）和1280×800。当前采集支持single/multi-plane单内存平面，不支持packed RAW10。
-5. 用示波器测GPIO3_D3的15Hz FSIN、两颗相机实际曝光与U3 INT1的416Hz，观察满负载下偏移和抖动。仅两帧软件时间戳接近不能证明曝光同步。
+5. 用示波器测GPIO3_D3的已配置 FSIN（当前开发请求120Hz）、两颗相机实际曝光与U3 INT1的416Hz，观察满负载下偏移和抖动。仅两帧软件时间戳接近不能证明曝光同步。
 6. 检查 `/dev/imu0`，在静止时验证加速度模长约9.80665m/s²、陀螺接近零，记录样本间隔和flags。详见IMU ABI文档。
 7. 主机 `lsusb -t` 检查USB高速480M、uvcvideo和cdc_acm；运行host工具读参数/改参数，保存左右与16位深度，反复热插拔验证。
 

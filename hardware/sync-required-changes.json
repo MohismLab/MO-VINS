@@ -1,0 +1,18 @@
+{
+  "status": "proposed_not_applied",
+  "basis": "hardware/netlist.json exported 2026-10-27; board not manufactured per user",
+  "required_nets": {
+    "SYNC_PWM_3V3": ["U1.9"],
+    "SYNC_REF_3V3": ["U3.9", "U1.78"],
+    "CAM_FSIN_1V8": ["U4.B5", "U12.B5"],
+    "SYNC_ENABLE": ["U1.73"]
+  },
+  "existing_preserved": {"IMU_INT": ["U3.4", "U1.77"]},
+  "requirements": [
+    "Gate SYNC_PWM_3V3 into SYNC_REF_3V3 with default-disabled output until IMU DEN input is configured",
+    "Translate SYNC_REF_3V3 to CAM_FSIN_1V8; do not short these voltage domains",
+    "Provide scope test points for source, reference, camera FSIN, IMU INT1 and camera exposure outputs",
+    "Verify translator part, power sequencing, thresholds, pulse distortion and PCB routing",
+    "Re-export schematic and PCB connectivity and pass electrical/physical design review before manufacture"
+  ]
+}

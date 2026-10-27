@@ -3,7 +3,9 @@
 calibrated: 0
 width: 320
 height: 200
-fps: 15
+fps: 120
+usb_fps: 60
+depth_fps: 30
 capture_width: 1280
 capture_height: 800
 disparities: 64

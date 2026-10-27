@@ -1,0 +1,30 @@
+{
+  "status": "draft_not_qualified",
+  "board_manufactured": false,
+  "requested_performance": {
+    "native_stereo_width": 1280,
+    "native_stereo_height": 800,
+    "capture_fps": 120,
+    "usb_tile_width": 320,
+    "usb_tile_height": 200,
+    "usb_fps": 60,
+    "dense_depth_fps": 30
+  },
+  "acceptance_limits_pending": {
+    "minimum_valid_vio_fps": null,
+    "maximum_end_to_end_latency_ms": null,
+    "maximum_camera_exposure_skew_us": null,
+    "maximum_camera_imu_alignment_error_us": null,
+    "depth_error_by_distance": null,
+    "trajectory_ate_rpe": null,
+    "operating_temperature_range_c": null,
+    "continuous_runtime_hours": null
+  },
+  "measured_performance": null,
+  "hardware_sync_qualified": false,
+  "schematic_drc_passed": false,
+  "pcb_drc_passed": null,
+  "realtime_kernel_qualified": false,
+  "real_dataset_accuracy_qualified": false,
+  "board_evidence": null
+}

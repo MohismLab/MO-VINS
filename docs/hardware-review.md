@@ -44,7 +44,7 @@
 |SOC_UART1_TX/RX|75 / 76，UART1 M0|独立 UART1|
 |SHUTDOWN1/2|3 / 5，GPIO3_C5/C7|OV9281 驱动 `pwdn-gpios`；此 SDK 的逻辑 1 表示上电，需示波器确认实际高电平|
 |XVCLK1/2|2 / 4，MIPI_CLK0/1_OUT|24MHz MCLK_REF_MIPI0/1|
-|FSIN|9，GPIO3_D3 / PWM1 M2，两颗相机共同 FSIN|15Hz 硬件 PWM、10µs 脉冲；传感器补丁启用外触发，时序需实测|
+|FSIN|9，GPIO3_D3 / PWM1 M2，两颗相机共同 FSIN|按 performance.conf 请求硬件 PWM（当前120Hz）、10µs 脉冲；传感器补丁启用外触发，时序需实测|
 |左 MIPI|127/128 D0、123/124 D1、125/126 CLK|DPHY1，逻辑 data-lanes=<1 2>|
 |右 MIPI|121/122 D2、117/118 D3、119/120 CLK1|DPHY2，分拆后逻辑 data-lanes=<1 2>|
 |SID|U4 E1 上拉 1.8V，U12 E1 下拉|暂按唯一 7-bit 地址左 0x10、右 0x60；**需读芯片 ID 验证**，不能用广播地址区分传感器|
@@ -73,7 +73,7 @@
 
 导出网表中的FSIN只有三端：SoC 9脚 GPIO3_D3/PWM1_M2，以及两颗OV9281的B5脚
 FSIN/VSYNC。板级DTS启用PWM1 M2，两颗相机均带 `mohism,external-fsin` 属性；
-启动脚本设置15Hz、10µs高电平脉冲，驱动补丁在STREAMON前写外部FSIN配置。
+启动脚本按 performance.conf 设置频率（当前请求120Hz）、10µs高电平脉冲，驱动补丁在STREAMON前写外部FSIN配置。
 这已经提供双目共同硬触发的软件配置，但未用示波器/真实图像证明实际曝光同步。
 
 U3 LSM6DSO的4脚INT1接IMU_INT；9脚INT2在当前网表中未连接，也没有接入FSIN。
@@ -84,3 +84,5 @@ U3 LSM6DSO的4脚INT1接IMU_INT；9脚INT2在当前网表中未连接，也没�
 
 若要改变这一同步架构，需要先核查传感器官方接口时序及IO电压，再决定硬件连线与驱动变更；
 本次没有修改原理图，也没有把一个未连接的同步输入当成已经存在。
+
+用户后续明确要求共同硬件同步及产品级交付；改版方案与未完成的闭环见 [共同同步改版](hardware-sync.md) 和 [产品交付基线](product-delivery.md)。INT1 已连接不代表共同触发已经完成。
