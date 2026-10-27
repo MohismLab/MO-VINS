@@ -14,7 +14,7 @@ case "${1:-start}" in
   echo "${MOHISM_USB_VID:-0x1d6b}" > "$G/idVendor"
   echo "${MOHISM_USB_PID:-0x0104}" > "$G/idProduct"
   echo 0x0200 > "$G/bcdUSB"
-  echo 0x0100 > "$G/bcdDevice"
+  echo 0x0201 > "$G/bcdDevice"
   echo 0xEF > "$G/bDeviceClass"
   echo 0x02 > "$G/bDeviceSubClass"
   echo 0x01 > "$G/bDeviceProtocol"
@@ -22,9 +22,9 @@ case "${1:-start}" in
   SERIAL=$(cat /proc/device-tree/serial-number 2>/dev/null | tr -d '\000' || true)
   echo "${SERIAL:-MOHISM-DEVELOPMENT}" > "$G/strings/0x409/serialnumber"
   echo MOHISM > "$G/strings/0x409/manufacturer"
-  echo 'Stereo VINS + MAVLink' > "$G/strings/0x409/product"
+  echo 'Stereo VINS + MAVLink + Debug' > "$G/strings/0x409/product"
   mkdir -p "$G/configs/c.1/strings/0x409"
-  echo 'UVC stereo-depth / CDC MAVLink' > "$G/configs/c.1/strings/0x409/configuration"
+  echo 'UVC stereo-depth / CDC MAVLink / CDC Debug' > "$G/configs/c.1/strings/0x409/configuration"
   echo 250 > "$G/configs/c.1/MaxPower"
   mkdir -p "$G/functions/uvc.usb0"
   F=$G/functions/uvc.usb0
@@ -47,18 +47,26 @@ case "${1:-start}" in
   ln -s ../../header/h "$F/control/class/fs/h"
   ln -s ../../header/h "$F/control/class/ss/h"
   mkdir -p "$G/functions/acm.usb0"
+  mkdir -p "$G/functions/acm.usb1"
+  [ "$(cat "$G/functions/acm.usb0/port_num")" = 0 ] && [ "$(cat "$G/functions/acm.usb1/port_num")" = 1 ] || {
+   echo 'Unexpected ACM port allocation; refusing to mix MAVLink and console' >&2;exit 1;
+  }
+  echo 0 > "$G/functions/acm.usb0/console"
+  echo 1 > "$G/functions/acm.usb1/console"
   # Link UVC first: its streaming interface is 1, as used in src/uvc.cpp.
   ln -s ../../functions/uvc.usb0 "$G/configs/c.1/01-uvc"
   ln -s ../../functions/acm.usb0 "$G/configs/c.1/02-acm"
+  ln -s ../../functions/acm.usb1 "$G/configs/c.1/03-debug"
   echo "$UDC_NAME" > "$G/UDC"
   ;;
  stop)
   [ -d "$G" ] || exit 0
   echo '' > "$G/UDC"
-  rm -f "$G/configs/c.1/01-uvc" "$G/configs/c.1/02-acm"
+  echo 0 > "$G/functions/acm.usb1/console"
+  rm -f "$G/configs/c.1/01-uvc" "$G/configs/c.1/02-acm" "$G/configs/c.1/03-debug"
   F=$G/functions/uvc.usb0
   rm -f "$F/streaming/class/fs/h" "$F/streaming/class/hs/h" "$F/control/class/fs/h" "$F/control/class/ss/h" "$F/streaming/header/h/u"
-  rmdir "$F/streaming/header/h" "$F/streaming/uncompressed/u/960x200" "$F/streaming/uncompressed/u" "$F/control/header/h" "$F" "$G/functions/acm.usb0"
+  rmdir "$F/streaming/header/h" "$F/streaming/uncompressed/u/960x200" "$F/streaming/uncompressed/u" "$F/control/header/h" "$F" "$G/functions/acm.usb1" "$G/functions/acm.usb0"
   rmdir "$G/configs/c.1/strings/0x409" "$G/configs/c.1" "$G/strings/0x409" "$G"
   ;;
  *) echo "usage: $0 start|stop" >&2;exit 2;;

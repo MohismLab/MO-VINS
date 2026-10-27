@@ -47,3 +47,11 @@ RV1106实测帧率/CPU/RSS或长期运行证据；松耦合后端、没有滑窗
 
 Sanitizer最终通过记录来自 `sh scripts/build.sh sanitize` 对应的非PIE ASan/UBSan配置。
 一次PIE测试启动挂起已终止，原日志独立保留，未将其记为通过；根因尚未确认。
+
+## 第二 USB 串口与 U-Boot CDC（2026-10-28）
+
+U-Boot ARM 构建通过，实际配置启用 MOHISM_USB_CONSOLE、DWC3 gadget、console mux 和 5 秒倒计时。SDK 的旧板级 USB 初始化与 DM gadget 冲突、无 XHCI 时仍链接 host 驱动的问题已由幂等补丁处理。最终 uboot.img 仍为 262144 字节，满足既有 256KiB 分区。
+
+内核与 rootfs 已重建；`scripts/verify-usb-debug.py` 核对实际内核/U-Boot 配置、ELF 中控制台与 DM 中断符号、编译 DTB 的 ttyGS1/ttyS2 console、唯一 getty、securetty、ACM 默认不注册 console 及镜像分区大小。host 的 5 项 CTest 与 MAVLink/传输 Python 测试通过。ENV/FIT/SD 镜像内容与哈希验证通过。日志位于忽略目录 `out/validation/usb-*.log`。
+
+以上属于编译和离线验证，没有目标板 USB 枚举、U-Boot 命令交互或 Linux 并发传输实测，不标记实机验收完成。

@@ -8,7 +8,7 @@ import tarfile
 root = Path(__file__).resolve().parent.parent
 destination = root / 'out/artifacts/mohism-vins-source.tar.gz'
 paths = ['CMakeLists.txt', 'README.md', 'TASKS.md', 'LICENSE', '.gitignore', 'sources.lock.json',
-         'src', 'include', 'tests', 'host', 'scripts', 'board', 'buildroot', 'docker',
+         'uboot', 'src', 'include', 'tests', 'host', 'scripts', 'board', 'buildroot', 'docker',
          'docs', 'hardware', 'third_party', 'kernel/Makefile', 'kernel/mohism_imu.c',
          'vendor/mavlink']
 

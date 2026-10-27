@@ -58,6 +58,8 @@ def main():
         assert hashlib.sha256(payload).digest() == props[f'/images/{image}/hash/value'], f'FIT {image} hash'
     dt=fdt_props((directory/'rv1106g3-mohism-vins.dtb').read_bytes())
     assert b'/dev/mmcblk1p6' in dt['/chosen/bootargs']
+    assert b'console=ttyGS1' in dt['/chosen/bootargs']
+    assert b'console=ttyGS0' not in dt['/chosen/bootargs']
     assert dt['/spi@ff500000/imu@0/compatible'].rstrip(b'\0') == b'mohism,lsm6dso-imu'
     print('PASS SD payload offsets, ENV CRC, FIT kernel/DTB SHA256, root partition and IMU binding')
 

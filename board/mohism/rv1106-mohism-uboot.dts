@@ -14,3 +14,6 @@
 &emmc {status="disabled";};
 &gmac {status="disabled";};
 &rmii_phy {status="disabled";};
+
+&usbdrd {status="okay";};
+&usbdrd_dwc3 {status="okay";dr_mode="peripheral";maximum-speed="high-speed";};

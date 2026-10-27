@@ -20,7 +20,9 @@ sh scripts/build.sh all
 
 ## USB 使用
 
-USB 是一个物理复合设备，具有 UVC 和 CDC ACM 接口。Linux 主机通常得到 `/dev/ttyACM0` 和一个 UVC `/dev/videoN`；设备号会随其他设备变化。`lsusb` 列出物理设备，`lsusb -t` 显示接口驱动。
+U-Boot 提供独立 USB CDC 调试控制台，进入 Linux 时重新枚举；早期 SPL/DDR 日志使用 UART2。连接方式与验证限制见 [USB 调试串口](docs/usb-debug.md)。
+
+USB 是一个物理复合设备，具有 UVC 和两个 CDC ACM 接口。Linux 主机通常得到 `/dev/ttyACM0`（MAVLink）、`/dev/ttyACM1`（调试日志与 Shell）和一个 UVC `/dev/videoN`；设备号会随其他设备变化。`lsusb` 列出物理设备，`lsusb -t` 显示接口驱动。
 
 ```sh
 python3 -m venv .venv

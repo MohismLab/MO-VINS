@@ -2,7 +2,7 @@
 
 ## USB
 
-一个 USB2 High Speed 复合设备；先 UVC（控制接口 0、视频流接口 1），后 CDC ACM。开发默认使用 Linux gadget 示例 VID/PID `1d6b:0104`，量产需替换为已分配的标识。USB 数据带宽约 5.76MB/s，包含端点开销后仍须真机确认。
+一个 USB2 High Speed 复合设备；先 UVC（控制接口 0、视频流接口 1），后两个 CDC ACM（MAVLink 控制/数据接口 2/3，调试控制/数据接口 4/5）。开发默认使用 Linux gadget 示例 VID/PID `1d6b:0104`，量产需替换为已分配的标识。USB 数据带宽约 5.76MB/s，包含端点开销后仍须真机确认。
 
 每个 UVC 帧 384000 字节，960×200，YUYV 15fps。每行 1920 字节：
 
@@ -18,7 +18,7 @@
 
 ## MAVLink
 
-MAVLink common，发送 MAVLink2，可解析 MAVLink1/2。设备端 `/dev/ttyGS0`，主机通常 `/dev/ttyACM0`。波特率标记 115200，CDC USB 实际传输速率由 USB 决定。system=1，component=197（VISUAL_INERTIAL_ODOMETRY）。接受本机目标或广播目标。
+MAVLink common，发送 MAVLink2，可解析 MAVLink1/2。设备端 `/dev/ttyGS0`，主机通常 `/dev/ttyACM0`，须按 USB 接口 2 确认；第二个串口 `/dev/ttyGS1` 专用于内核日志、登录与 Shell，见 [USB 调试串口](usb-debug.md)。波特率标记 115200，CDC USB 实际传输速率由 USB 决定。system=1，component=197（VISUAL_INERTIAL_ODOMETRY）。接受本机目标或广播目标。
 
 支持 HEARTBEAT（约1Hz）、PARAM_REQUEST_LIST、PARAM_REQUEST_READ（名称或索引）、PARAM_SET、PARAM_VALUE、ODOMETRY。所有参数以 REAL32 传输；错误类型、NaN、越界或只读写入均回传当前值。写入磁盘失败也会回滚。
 
