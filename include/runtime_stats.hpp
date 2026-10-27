@@ -37,7 +37,7 @@ public:
   if(std::isfinite(age_ms)&&age_ms>=0){if(age_.size()==512)age_.erase(age_.begin());age_.push_back(age_ms);}
  }
  bool due(double now)const{return now-window_>=5;}
- bool write(const std::string& path,double now,const Config& cfg,uint64_t uvc_completed,uint64_t uvc_repeated,bool streaming,Uvc::Stats depth={}){
+ bool write(const std::string& path,double now,const Config& cfg,uint64_t uvc_completed,uint64_t uvc_repeated,bool streaming,Uvc::Stats depth={},Estimator::Diagnostics diagnostics={}){
   double elapsed=now-start_;if(!std::isfinite(elapsed)||elapsed<=0)return false;
   window_=now;
   std::string tmp=path+".tmp";std::ofstream out(tmp);
@@ -53,7 +53,13 @@ public:
    <<",\n  \"uvc_stereo_completed_buffers\": "<<uvc_completed<<",\n  \"uvc_stereo_repeated_buffers\": "<<uvc_repeated
    <<",\n  \"uvc_stereo_streaming\": "<<(streaming?"true":"false")
    <<",\n  \"uvc_depth_completed_buffers\": "<<depth.completed<<",\n  \"uvc_depth_repeated_buffers\": "<<depth.repeated
-   <<",\n  \"uvc_depth_streaming\": "<<(depth.streaming?"true":"false")<<"\n}\n";
+   <<",\n  \"uvc_depth_streaming\": "<<(depth.streaming?"true":"false")
+   <<",\n  \"joint_window_states\": "<<diagnostics.window<<",\n  \"joint_landmarks\": "<<diagnostics.landmarks
+   <<",\n  \"joint_solves\": "<<diagnostics.solves<<",\n  \"joint_marginalizations\": "<<diagnostics.marginalizations
+   <<",\n  \"last_solve_ms\": "<<diagnostics.solve_ms<<",\n  \"last_joint_cost\": "<<diagnostics.cost
+   <<",\n  \"loop_keyframes\": "<<diagnostics.keyframes<<",\n  \"loop_closures\": "<<diagnostics.loops
+   <<",\n  \"relocalizations\": "<<diagnostics.relocalizations<<",\n  \"time_offset_s\": "<<std::setprecision(9)<<diagnostics.time_offset
+   <<",\n  \"calibration_estimation_active\": "<<(diagnostics.calibration_active?"true":"false")<<"\n}\n";
   out.close();if(!out)return false;
   if(std::rename(tmp.c_str(),path.c_str()))return false;
   window_=now;return true;

@@ -19,7 +19,24 @@
     "license": "GPL-3.0",
     "ported_components": [
       "vins_estimator/src/featureTracker/feature_tracker.cpp",
-      "vins_estimator/src/factor/integration_base.h"
+      "vins_estimator/src/factor/integration_base.h",
+      "vins_estimator/src/factor/imu_factor.h",
+      "vins_estimator/src/factor/pose_local_parameterization.cpp",
+      "vins_estimator/src/factor/pose_local_parameterization.h",
+      "vins_estimator/src/factor/projectionOneFrameTwoCamFactor.cpp",
+      "vins_estimator/src/factor/projectionOneFrameTwoCamFactor.h",
+      "vins_estimator/src/factor/projectionTwoFrameOneCamFactor.cpp",
+      "vins_estimator/src/factor/projectionTwoFrameOneCamFactor.h",
+      "vins_estimator/src/factor/projectionTwoFrameTwoCamFactor.cpp",
+      "vins_estimator/src/factor/projectionTwoFrameTwoCamFactor.h",
+      "vins_estimator/src/utility/utility.h",
+      "vins_estimator/src/utility/utility.cpp"
+    ],
+    "adapted_designs": [
+      "sliding-window joint optimization",
+      "Schur square-root marginalization",
+      "metric stereo visual-inertial initialization",
+      "gravity-preserving pose graph; ORB replaces BRIEF/DBoW retrieval"
     ]
   },
   "preempt_rt": {
@@ -30,5 +47,11 @@
     "upstream_patch_sha256": "b5e4a81dcddc5f4bfbf9cc14a25f67994bfa62a7ab154f99559a7a325a5382fa",
     "patch_sha256": "074e9d7a0c08afc807f538e6fd34d81d0aa8ff96764157003e5df665bde82998",
     "manifest": "kernel/rt/manifest.json"
+  },
+  "ceres": {
+    "repository": "https://github.com/ceres-solver/ceres-solver.git",
+    "version": "2.1.0",
+    "archive_sha256": "ccbd716a93f65d4cb017e3090ae78809e02f5426dce16d0ee2b4f8a4ba2411a8",
+    "license": "BSD-3-Clause"
   }
 }

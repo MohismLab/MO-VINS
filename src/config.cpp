@@ -10,6 +10,7 @@ Config Config::load(const std::string& path){
  Config c;
  #define READ(x) if(!fs[#x].empty())fs[#x]>>c.x
  READ(width);READ(height);READ(fps);READ(usb_fps);READ(depth_fps);READ(disparities);READ(capture_width);READ(capture_height);
+ READ(window_size);READ(max_features);READ(solver_iterations);READ(loop_max_keyframes);READ(solver_time);READ(optimizer_fps);READ(pixel_noise);READ(estimate_extrinsics);READ(estimate_time_offset);READ(loop_closure);READ(map_file);
  READ(max_skew);READ(imu_offset);READ(left);READ(right);READ(imu);READ(serial);READ(uvc_stereo);READ(uvc_depth);READ(uvc_stereo_control);READ(uvc_stereo_stream);READ(uvc_depth_control);READ(uvc_depth_stream);READ(params);
  READ(K1);READ(D1);READ(K2);READ(D2);READ(R);READ(T);READ(Rbc);READ(tbc);READ(Rbi);READ(calibrated);
  #undef READ
@@ -29,6 +30,8 @@ void Config::validateProfile()const{
 }
 void Config::validate()const{
  validateProfile();
+ if(window_size<4||window_size>12||max_features<30||max_features>250||solver_iterations<1||solver_iterations>30||loop_max_keyframes<30||loop_max_keyframes>1000)throw std::runtime_error("invalid bounded optimizer configuration");
+ if(!std::isfinite(solver_time)||solver_time<.001||solver_time>2||!std::isfinite(optimizer_fps)||optimizer_fps<5||optimizer_fps>120||!std::isfinite(pixel_noise)||pixel_noise<.1||pixel_noise>5)throw std::runtime_error("invalid optimizer timing/noise");
  if(!calibrated)throw std::runtime_error("calibration not verified: set calibrated only after stereo/IMU calibration");
  if(disparities<=0||disparities%16||disparities>=width)throw std::runtime_error("invalid disparities");
  if(!std::isfinite(max_skew)||max_skew<=0||max_skew>0.02||!std::isfinite(imu_offset)||std::abs(imu_offset)>.5)throw std::runtime_error("invalid sensor time calibration");

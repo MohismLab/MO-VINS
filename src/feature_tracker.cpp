@@ -33,7 +33,7 @@ const std::vector<Track>& FeatureTracker::process(const cv::Mat& left,const cv::
   for(const auto& t:tracks_)before.push_back(t.point);
   flow(previous_,left,before,after,valid);
   for(size_t i=0;i<tracks_.size();++i)if(valid[i]){
-   Track t=tracks_[i];t.previous=t.point;t.previous_depth=t.depth;t.point=after[i];++t.age;t.depth=0;surviving.push_back(t);
+   Track t=tracks_[i];t.previous=t.point;t.previous_right=t.right;t.previous_depth=t.depth;t.point=after[i];++t.age;t.depth=0;surviving.push_back(t);
   }
  }
  // VINS-Fusion setMask: retain long-lived tracks first, then replenish spaced corners.
@@ -52,7 +52,7 @@ const std::vector<Track>& FeatureTracker::process(const cv::Mat& left,const cv::
   double disparity=points[i].x-right_points[i].x;
   if(stereo_valid[i]&&std::abs(points[i].y-right_points[i].y)<=.75&&disparity>=.75){
    double z=fx*baseline/disparity;
-   if(z>=.1&&z<=15)tracks_[i].depth=z;
+   if(z>=.1&&z<=15){tracks_[i].depth=z;tracks_[i].right=right_points[i];}
   }
  }
  previous_=left.clone();return tracks_;

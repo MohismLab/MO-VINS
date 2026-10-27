@@ -43,7 +43,7 @@
 
 这些结果仅证明当前软件在指定合成输入与构建环境中通过测试。3.543mm等数值是短序列合成回归结果，
 不代表OV9281/LSM6DSO实测精度。尚未跑真实EuRoC/TUM-VI或本板带真值数据，没有ATE/RPE、
-RV1106实测帧率/CPU/RSS或长期运行证据；松耦合后端、没有滑窗/回环等限制仍存在。
+RV1106实测帧率/CPU/RSS或长期运行证据；当时仍为松耦合后端；0.5.0 的更新结果见本页后续记录。
 
 Sanitizer最终通过记录来自 `sh scripts/build.sh sanitize` 对应的非PIE ASan/UBSan配置。
 一次PIE测试启动挂起已终止，原日志独立保留，未将其记为通过；根因尚未确认。
@@ -74,3 +74,11 @@ U-Boot ARM 构建通过，实际配置启用 MOHISM_USB_CONSOLE、DWC3 gadget、
 PREEMPT_RT 内核、ARM 应用与根文件系统重建通过，离线镜像门禁通过。内核新增 Z16 gadget 格式支持，已同步到实际 RT 构建源码；检查同时核对安装后的两个启动脚本和描述符辅助脚本。日志为 `out/dual-uvc-{host,sanitize,kernel,rootfs,package}.log`。
 
 尚未验证物理 USB 枚举、控制器端点数量、主机双路等时带宽分配、实际传输率、启停与热插拔。两路视频没有共享曝光元数据；单独保存的序号和主机到达时间不能用于跨流曝光配对。上述测试不替代实板验收。
+
+## 0.5.0 紧耦合后端
+
+本版启用双目/IMU 联合滑窗、逆深度优化与 Schur 边缘化，补充运动初始化、ORB 回环、四自由度图、持久地图及重定位；在线外参/时间估计默认关闭。
+
+主机 11 项 CTest、MAVLink/传输/双 UVC 离线检查通过。ASan/UBSan 与 ARM QEMU 检查覆盖新增数学、初始化和地图路径。完整 Buildroot 固件重建后检查 ARM 动态依赖闭包及 Ceres 许可证。日志分别为 `out/tight-host.log`、`out/tight-sanitize.log`、`out/tight-arm-validation.log`、`out/tight-rootfs.log` 和 `out/tight-package.log`。
+
+EuRoC MH_01_easy 全序列有效率 98.29%，25 次重置或修正计数变化；分段无尺度拟合的 ATE RMSE 为 0.05988m，1 秒平移/旋转 RPE RMSE 为 0.05476m/0.63353°。全程 ATE 不作有效结论。数据来源、逐段结果、复现方式和限制见 [算法验证](vins-fusion-port.md) 及 `qualification/euroc-mh01-*.json`。本次结果不代表实板精度或产品放行。

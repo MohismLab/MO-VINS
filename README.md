@@ -68,9 +68,11 @@ python host/mohism.py images --stereo /dev/videoN --depth /dev/videoM --output c
 
 ## 算法
 
-前端从 VINS-Fusion 移植了持续特征跟踪、双向光流检查和双目匹配，IMU 部分实现中点预积分、雅可比、协方差和偏置重传播。后端采用 15 维误差状态滤波器融合视觉与惯性数据。
+算法使用双目特征与 IMU 预积分共同求解位姿、速度、偏置和特征逆深度，后端为 Ceres 紧耦合滑窗，滑窗退出的状态通过 Schur 边缘化保留信息。初始化支持静止和具备足够运动的双目惯性对齐。
 
-当前算法是松耦合实现，尚未包含 VINS-Fusion 的紧耦合滑窗优化、边缘化、回环和重定位。代码具备时间、数值和几何检查，以及跟踪丢失、传感器断流后的重新初始化逻辑；恢复后本地坐标原点可能变化，主机应读取 MAVLink `reset_counter`。
+回环使用 ORB 检索、双目几何验证和重力约束的四自由度位姿图。地图可保存并在重启后重定位。外参和时间偏移支持在线估计，默认关闭，需要充分运动激励。地图修正或跟踪恢复可能改变输出坐标，主机应处理 MAVLink `reset_counter`。
+
+EuRoC MH_01_easy 的离线回放有效率为 98.29%，发生 25 次重置或坐标修正计数变化。分段 SE(3) 对齐的位置 RMSE 为 0.060m；这不是全程连续轨迹精度，也不能代表本设备精度。数据来源、评估方法及限制见 [算法验证](docs/vins-fusion-port.md)。
 
 默认配置为 `calibrated: 0`，此时只提供原始双目预览和 MAVLink 控制，深度为零，不发送有效里程计。配置模板中的内外参是示例值，使用前必须替换为实测标定结果。
 
@@ -114,6 +116,7 @@ sh scripts/build.sh all
 | --- | --- |
 | `sh scripts/build.sh host` | 主机编译和回归测试 |
 | `sh scripts/build.sh sanitize` | ASan / UBSan 检查 |
+| `sh scripts/build.sh arm-check` | QEMU 下运行 ARM 数值与地图测试 |
 | `sh scripts/build.sh kernel` | PREEMPT_RT 内核、设备树和 IMU 驱动 |
 | `sh scripts/build.sh kernel-standard` | 单独构建普通内核，用于回退比较 |
 | `sh scripts/build.sh uboot` | U-Boot |

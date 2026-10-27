@@ -22,6 +22,7 @@ cd /work
 python3 scripts/verify-artifacts.py
 python3 scripts/verify-usb-debug.py
 python3 scripts/verify-performance.py
+python3 scripts/verify-vio.py
 python3 scripts/verify-realtime.py --rootfs
 python3 scripts/source-archive.py
 cd out/artifacts

@@ -66,3 +66,16 @@ Rbi: !!opencv-matrix
    cols: 3
    dt: d
    data: [1., 0., 0., 0., 1., 0., 0., 0., 1.]
+
+# Bounded tightly coupled backend. These requests require board profiling.
+window_size: 6
+max_features: 100
+solver_iterations: 8
+solver_time: 0.04
+optimizer_fps: 30.
+pixel_noise: 0.7
+estimate_extrinsics: 0
+estimate_time_offset: 0
+loop_closure: 1
+loop_max_keyframes: 200
+map_file: "/userdata/mohism-map.yml"

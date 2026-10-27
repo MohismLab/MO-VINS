@@ -18,6 +18,8 @@ mkdir -p "$TARGET_DIR/userdata"
 mkdir -p "$TARGET_DIR/usr/share/licenses/mohism-vins"
 cp "$ROOT/LICENSE" "$TARGET_DIR/usr/share/licenses/mohism-vins/"
 cp "$ROOT/third_party/VINS-Fusion/NOTICE.md" "$TARGET_DIR/usr/share/licenses/mohism-vins/VINS-Fusion-NOTICE.md"
+mkdir -p "$TARGET_DIR/usr/share/licenses/ceres-solver"
+cp "$ROOT/third_party/ceres-solver/LICENSE" "$TARGET_DIR/usr/share/licenses/ceres-solver/"
 if ! grep -q '^ttyGS1::respawn:' "$TARGET_DIR/etc/inittab"; then
  printf '\nttyGS1::respawn:/sbin/getty -L ttyGS1 115200 vt100\n' >> "$TARGET_DIR/etc/inittab"
 fi

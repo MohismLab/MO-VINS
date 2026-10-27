@@ -14,11 +14,11 @@
 namespace mohism {
 struct Mavlink::Impl {
  int fd=-1;std::string path;bool enabled=true;float skew=2;double heartbeat=-1,last_pose_t=-1;uint8_t last_pose_epoch=0;
- float noise[4]={.1f,.01f,.03f,.02f};
+ float noise[4]={.1f,.01f,.0001f,.00001f};
  struct Pending {std::vector<uint8_t> bytes;uint32_t id;double queued;uint8_t epoch;};
  mavlink_status_t status{};mavlink_message_t rx{};std::deque<Pending> tx;size_t offset=0;int listing=-1;uint8_t epoch=0;
- const char* names[8]={"VIO_ENABLE","SYNC_MAX_MS","VIO_VALID","FW_VERSION","ACC_NOISE","GYRO_NOISE","POSE_POS_SD","POSE_ROT_SD"};
- float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):400.f;}
+ const char* names[8]={"VIO_ENABLE","SYNC_MAX_MS","VIO_VALID","FW_VERSION","ACC_NOISE","GYRO_NOISE","ACC_BIAS_RW","GYRO_BIAS_RW"};
+ float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):500.f;}
  void queue(const mavlink_message_t& m){
   if(m.msgid==MAVLINK_MSG_ID_ODOMETRY){
    for(auto it=tx.begin();it!=tx.end();){
@@ -54,7 +54,7 @@ struct Mavlink::Impl {
     if(q.param_type==MAV_PARAM_TYPE_REAL32&&std::isfinite(q.param_value)){
      if(i==0&&(q.param_value==0||q.param_value==1))enabled=q.param_value!=0;
      if(i==1&&q.param_value>=.1&&q.param_value<=20)skew=q.param_value;
-     const float low[4]={.001f,.00001f,.001f,.0001f},high[4]={10.f,1.f,10.f,1.f};
+     const float low[4]={.001f,.00001f,.000001f,.0000001f},high[4]={10.f,1.f,.1f,.1f};
      if(i>=4&&q.param_value>=low[i-4]&&q.param_value<=high[i-4])noise[i-4]=q.param_value;
     }
     if((enabled!=old||skew!=oldskew||(i>=4&&noise[i-4]!=oldnoise))&&!save()){enabled=old;skew=oldskew;if(i>=4)noise[i-4]=oldnoise;}
@@ -68,7 +68,7 @@ Mavlink::Mavlink(const std::string& device,const std::string& path):impl_(new Im
  if(impl_->fd<0){delete impl_;throw std::runtime_error("cannot open USB ACM serial");}
  termios t{};if(tcgetattr(impl_->fd,&t)==0){cfmakeraw(&t);t.c_cflag|=CLOCAL|CREAD;cfsetispeed(&t,B115200);cfsetospeed(&t,B115200);tcsetattr(impl_->fd,TCSANOW,&t);}
  if(access(path.c_str(),F_OK)==0){cv::FileStorage fs(path,cv::FileStorage::READ);if(fs.isOpened()){int en=1;float skew=2;fs["VIO_ENABLE"]>>en;fs["SYNC_MAX_MS"]>>skew;impl_->enabled=en!=0;if(std::isfinite(skew)&&skew>=.1&&skew<=20)impl_->skew=skew;
-  const float low[4]={.001f,.00001f,.001f,.0001f},high[4]={10.f,1.f,10.f,1.f};
+  const float low[4]={.001f,.00001f,.000001f,.0000001f},high[4]={10.f,1.f,.1f,.1f};
   for(int i=0;i<4;++i)if(!fs[impl_->names[i+4]].empty()){float v;fs[impl_->names[i+4]]>>v;if(std::isfinite(v)&&v>=low[i]&&v<=high[i])impl_->noise[i]=v;}
  }}
 }

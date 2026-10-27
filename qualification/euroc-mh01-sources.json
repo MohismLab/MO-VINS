@@ -1,0 +1,25 @@
+{
+  "dataset": {
+    "name": "EuRoC MH_01_easy",
+    "url": "https://huggingface.co/datasets/kavehsgh/EuRoC_MAV_Dataset_Machine_Hall_Easy_01/resolve/main/MH_01_easy.bag?download=true",
+    "bytes": 2673818914,
+    "sha256": "57f440ccd68ec8dc8f9461269f5909656b86198bac3adfd677b1fcc7a1428fa9",
+    "note": "Mirror; full bag extracted without image recompression; reference Leica measurements are not body poses."
+  },
+  "ground_truth": {
+    "url": "https://raw.githubusercontent.com/UZ-SLAMLab/ORB_SLAM3/fb41f9c651310d2c1aa508c79ff2ef185bcf6c17/evaluation/Ground_truth/EuRoC_imu/MH_GT.txt",
+    "sha256": "eb930e7fc42e9548f5681933758fb6fbff2a95d0c34877c490874f352e2a7914",
+    "frame": "native IMU, converted to cam0 with calibration; quaternion w,x,y,z"
+  },
+  "calibration": {
+    "url": "https://raw.githubusercontent.com/rpng/open_vins/34a133bc09bf95c445cd8e5debbaf1fda4f4bffa/config/euroc_mav/kalibr_imucam_chain.yaml",
+    "sha256": "b9e11b7bcda102f7c8c384c97318d67f3916b58942f9073722f83c22bd7073f7",
+    "local": "host/calibration/euroc.yml"
+  },
+  "evaluation": {
+    "date": "2026-10-28",
+    "alignment": "SE(3) per contiguous valid reset epoch; no fitted scale",
+    "reference_frame_conversion": "p_cam=p_imu+R_imu*Rbi.T*tbc; R_cam=R_imu*Rbi.T*Rbc",
+    "commands_documented_in": "docs/vins-fusion-port.md"
+  }
+}

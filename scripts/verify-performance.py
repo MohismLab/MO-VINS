@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check requested timing coherence; no target performance claims."""
 from pathlib import Path
+import re
 import os
 import subprocess
 import tempfile
@@ -33,6 +34,7 @@ print('PASS requested capture/USB/depth timing profiles, bandwidth arithmetic, r
 cache=(root/'out/buildroot/build/opencv4-4.6.0/buildroot-build/CMakeCache.txt').read_text()
 assert 'ENABLE_FAST_MATH:BOOL=OFF' in cache
 assert 'ENABLE_NEON:BOOL=ON' in cache
-flags=(root/'out/buildroot/build/mohism-vins-0.4.0/CMakeFiles/mohism_core.dir/flags.make').read_text()
+version=re.search(r'project\(mohism_vins VERSION ([0-9.]+)',(root/'CMakeLists.txt').read_text()).group(1)
+flags=(root/f'out/buildroot/build/mohism-vins-{version}/CMakeFiles/mohism_core.dir/flags.make').read_text()
 assert '-O3' in flags and '-fno-fast-math' in flags
 print('PASS target OpenCV NEON / strict floating-point configuration and VIO release optimization flags')

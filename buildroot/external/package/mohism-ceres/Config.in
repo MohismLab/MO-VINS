@@ -1,0 +1,7 @@
+config BR2_PACKAGE_MOHISM_CERES
+	bool "mohism-ceres"
+	depends on BR2_INSTALL_LIBSTDCPP
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_EIGEN
+	help
+	  Pinned Ceres solver for the stereo-inertial sliding window and pose graph.

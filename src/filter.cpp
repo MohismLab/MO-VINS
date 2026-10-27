@@ -38,6 +38,10 @@ void Filter::initialize(const std::vector<ImuSample>& s){
  p_=v_=V3{};P_=cv::Mat::eye(15,15,CV_64F)*.01;visual_t_=-1;
  gravity_=V3{0,0,9.80665};bg_=w;ba_=a*(1.-9.80665/cv::norm(a));t_=s.back().t;previous_=s.back();ready_=true;
 }
+void Filter::seed(const Pose& pose,const V3& ba,const V3& bg,const ImuSample& endpoint){
+ if(!rotation(pose.R)||!finite(pose.p)||!finite(pose.v)||!finite(ba)||!finite(bg)||!validImu(endpoint)||std::abs(pose.t-endpoint.t)>1e-6)throw std::runtime_error("invalid inertial seed");
+ R_=pose.R;p_=pose.p;v_=pose.v;ba_=ba;bg_=bg;t_=pose.t;previous_=endpoint;ready_=true;visual_t_=-1;P_=cv::Mat::eye(15,15,CV_64F)*.01;
+}
 bool Filter::predict(const ImuSample& s){
  if(!ready_)return false;
  double dt=s.t-t_;

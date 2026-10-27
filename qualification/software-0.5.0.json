@@ -1,0 +1,44 @@
+{
+  "firmware_version": "0.5.0",
+  "date": "2026-10-28",
+  "scope": "software-only validation; physical hardware unavailable",
+  "checks": {
+    "host_ctest": {
+      "passed": 11,
+      "failed": 0,
+      "log": "out/tight-host-final.log"
+    },
+    "asan_ubsan_ctest": {
+      "passed": 11,
+      "failed": 0,
+      "log": "out/tight-sanitize.log"
+    },
+    "protocol_and_usb": {
+      "status": "passed offline MAVLink PTY, transport bytes and dual-UVC descriptors",
+      "log": "out/tight-host.log"
+    },
+    "arm_qemu": [
+      "tight-test (Jacobians, marginalization, metric motion, outliers and calibration)",
+      "loop-test (false-loop rejection, bounded map, corrupt-map rejection and relocalization)",
+      "initialization-test (moving stereo/IMU alignment)"
+    ],
+    "rootfs": "cross-built with Ceres 2.1.0, Eigen and target OpenCV",
+    "package_checks": [
+      "SD offsets and payload hashes",
+      "dual UVC plus dual ACM and debug configuration",
+      "ARM shared-library dependency closure",
+      "PREEMPT_RT kernel and module ABI",
+      "target dependency licenses"
+    ]
+  },
+  "application_sha256": "ff772c0e433fd70312c67215479e0cdd8073c1cd06d9cb31f957e58fed5bff87",
+  "dataset_report": "qualification/euroc-mh01-results.json",
+  "limitations": [
+    "No physical boot, USB enumeration or scheduling latency measurement",
+    "No physical camera/IMU common synchronization validation",
+    "No board throughput, precision, power or thermal qualification",
+    "Online calibration convergence range unvalidated on real sensors",
+    "Single real sequence with resets; segmented ATE is not full-sequence accuracy",
+    "Persistent map requires sufficient userdata space for both old and temporary maps"
+  ]
+}

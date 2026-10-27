@@ -73,7 +73,8 @@ def main():
                     value, count, index, name, kind = struct.unpack('<fHH16sB', payload)
                     values[name.rstrip(b'\0').decode()] = value
             assert len(values) == 8 and values['VIO_VALID'] == 0, values
-            assert values['VIO_ENABLE'] == 1
+            assert values['VIO_ENABLE'] == 1 and values['FW_VERSION'] == 500
+            assert 'ACC_BIAS_RW' in values and 'GYRO_BIAS_RW' in values
             def set_value(name, value):
                 os.write(master, packet(23, struct.pack('<fBB16sB', value, 1, 197, name.encode(), 9)))
                 result = None
@@ -90,6 +91,8 @@ def main():
             assert set_value('VIO_ENABLE', 0) == 0
             assert abs(set_value('ACC_NOISE', .25)-.25) < 1e-6
             assert abs(set_value('GYRO_NOISE', -1)-.01) < 1e-6
+            assert abs(set_value('ACC_BIAS_RW', .002)-.002)<1e-8
+            assert abs(set_value('GYRO_BIAS_RW', float('nan'))-.00001)<1e-9
             process.terminate();process.wait(timeout=2)
             process = launch();time.sleep(.1)
             os.write(master, packet(21, bytes([1,197])))

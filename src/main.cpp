@@ -75,7 +75,7 @@ int main(int argc,char** argv){
    if(status!=estimator.status()){status=estimator.status();std::cerr<<"estimator: "<<status<<"\n";}
    link.poll(estimator.pose());usb.events();depth_usb.events();
    if(stats.due(monotonic())){auto u=usb.stats();
-    if(!stats.write("/run/mohism-status.json",monotonic(),cfg,u.completed,u.repeated,u.streaming,depth_usb.stats()))
+    if(!stats.write("/run/mohism-status.json",monotonic(),cfg,u.completed,u.repeated,u.streaming,depth_usb.stats(),estimator.diagnostics()))
      std::cerr<<"cannot write runtime statistics\n";
    }
    std::this_thread::sleep_for(std::chrono::milliseconds(1));

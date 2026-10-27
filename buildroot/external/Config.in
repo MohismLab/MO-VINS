@@ -1,1 +1,2 @@
+source "$BR2_EXTERNAL_MOHISM_PATH/package/mohism-ceres/Config.in"
 source "$BR2_EXTERNAL_MOHISM_PATH/package/mohism-vins/Config.in"

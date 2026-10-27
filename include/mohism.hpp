@@ -16,6 +16,10 @@ M3 expSO3(const V3& w);
 V3 logSO3(const M3& r);
 struct Config {
  int width=320,height=200,fps=120,usb_fps=60,depth_fps=30,disparities=64;
+ int window_size=6,max_features=100,solver_iterations=8,loop_max_keyframes=200;
+ double solver_time=.04,optimizer_fps=30,pixel_noise=.7;
+ bool estimate_extrinsics=false,estimate_time_offset=false,loop_closure=true;
+ std::string map_file="";
  int uvc_stereo_control=0,uvc_stereo_stream=1,uvc_depth_control=2,uvc_depth_stream=3;
  int capture_width=1280,capture_height=800;
  double max_skew=0.002,imu_offset=0;
@@ -44,21 +48,30 @@ class Filter {
 public:
  Filter();
  void initialize(const std::vector<ImuSample>& stationary);
+ void seed(const Pose&,const V3& ba,const V3& bg,const ImuSample& endpoint);
  bool predict(const ImuSample& s);
  bool correct(double t,const M3& R,const V3& p,int inliers,const cv::Mat& covariance=cv::Mat());
  void setNoise(const std::array<double,4>& noise);
  Pose pose() const;
  bool ready() const{return ready_;}
  cv::Mat covariance()const{return P_.clone();}
+ V3 accelBias()const{return ba_;}V3 gyroBias()const{return bg_;}
 };
 struct Track {
- uint64_t id=0;unsigned age=0;cv::Point2f point,previous;double depth=0,previous_depth=0;
+ uint64_t id=0;unsigned age=0;cv::Point2f point,previous;double depth=0,previous_depth=0;cv::Point2f right,previous_right;
 };
 class FeatureTracker {
  cv::Mat previous_;std::vector<Track> tracks_;uint64_t next_id_=0;
 public:
  const std::vector<Track>& process(const cv::Mat& left,const cv::Mat& right,double fx,double baseline);
 };
+struct Observation {
+ uint64_t id=0;cv::Point2d left,right,velocity,right_velocity;double depth=0;bool stereo=false;
+};
+struct CameraGeometry {cv::Mat K,Rbc,tbc;double baseline=0;};
+class StereoInitializer;
+class TightBackend;
+class LoopClosure;
 class Vision {
  Config cfg_;cv::Mat map1x_,map1y_,map2x_,map2y_,K_;
  M3 Rwc_=M3::eye();V3 pwc_={0,0,0};
@@ -67,18 +80,24 @@ class Vision {
  FeatureTracker tracker_;cv::Ptr<cv::StereoMatcher> matcher_;double previous_t_=-1,last_depth_t_=-1;
 public:
  explicit Vision(const Config& c,const Pose& origin=Pose{});
- struct Result {cv::Mat left,right,depth;Pose visual;bool depth_updated=false;};
- Result process(const Frame& left,const Frame& right);
+ struct Result {cv::Mat left,right,depth;Pose visual;bool depth_updated=false;std::vector<Observation> observations;};
+ CameraGeometry geometry() const{return {K_.clone(),cfg_.Rbc.clone(),cfg_.tbc.clone(),baseline_};}
+ Result process(const Frame& left,const Frame& right,bool estimate_pose=true);
 };
 // A bounded, hardware-independent runtime. A reset starts a new local FRD epoch.
 class Estimator {
  Config cfg_;Filter filter_;std::unique_ptr<Vision> vision_;
+ std::unique_ptr<TightBackend> backend_;std::unique_ptr<LoopClosure> loops_;
+ std::unique_ptr<Vision> initial_vision_;std::unique_ptr<StereoInitializer> initializer_;
  std::deque<ImuSample> samples_;std::vector<ImuSample> stationary_;
  ImuSample endpoint_{};bool have_endpoint_=false,enabled_=true;
  double last_imu_=-1,last_frame_=-1;unsigned warmup_=0;uint8_t resets_=0;
  std::string reason_="waiting for stationary IMU";Pose pose_;
+ std::array<double,4> noise_{.1,.01,.0001,.00001};
 public:
- explicit Estimator(const Config& cfg):cfg_(cfg){}
+ explicit Estimator(const Config& cfg);
+ ~Estimator();
+ Estimator(const Estimator&)=delete;Estimator& operator=(const Estimator&)=delete;
  void reset(const std::string& reason);
  void enable(bool enabled);
  void addImu(const ImuSample& sample);
@@ -86,7 +105,9 @@ public:
  Vision::Result process(const Frame& left,const Frame& right);
  Pose pose()const{return pose_;}
  const std::string& status()const{return reason_;}
- void setNoise(const std::array<double,4>& noise){filter_.setNoise(noise);}
+ void setNoise(const std::array<double,4>& noise);
+ struct Diagnostics {size_t window=0,landmarks=0,keyframes=0;uint64_t solves=0,marginalizations=0,loops=0,relocalizations=0;double solve_ms=0,cost=0,time_offset=0;bool calibration_active=false;V3 ba{},bg{};cv::Mat Rbc,tbc;};
+ Diagnostics diagnostics() const;
 };
 class Capture {
  int fd_=-1;std::vector<void*> memory_;std::vector<size_t> lengths_;

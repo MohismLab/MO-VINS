@@ -1,0 +1,33 @@
+From: PulsarV <zhijiatao@outlook.com>
+Subject: [PATCH] miniglog: disable verbose tracing and preserve fatal logs
+
+Upstream-Status: Inappropriate [firmware logging policy]
+
+--- a/internal/ceres/miniglog/glog/logging.h
++++ b/internal/ceres/miniglog/glog/logging.h
+@@ -312,18 +312,7 @@
+-#ifdef MAX_LOG_LEVEL
+-#  define LOG(n)  LOG_IF(n, n <= MAX_LOG_LEVEL)
+-#  define VLOG(n) LOG_IF(n, n <= MAX_LOG_LEVEL)
+-#  define LG      LOG_IF(INFO, INFO <= MAX_LOG_LEVEL)
+-#  define VLOG_IF(n, condition) LOG_IF(n, (n <= MAX_LOG_LEVEL) && condition)
+-#else
+-#  define LOG(n)  MessageLogger((char *)__FILE__, __LINE__, "native", n).stream()    // NOLINT
+-#  define VLOG(n) MessageLogger((char *)__FILE__, __LINE__, "native", n).stream()    // NOLINT
+-#  define LG      MessageLogger((char *)__FILE__, __LINE__, "native", INFO).stream() // NOLINT
+-#  define VLOG_IF(n, condition) LOG_IF(n, condition)
+-#endif
+-
+-// Currently, VLOG is always on for levels below MAX_LOG_LEVEL.
+-#ifndef MAX_LOG_LEVEL
+-#  define VLOG_IS_ON(x) (1)
+-#else
+-#  define VLOG_IS_ON(x) (x <= MAX_LOG_LEVEL)
+-#endif
++// Retain all normal severity checks, including FATAL. Firmware does not
++// enable verbose solver tracing: it otherwise writes every solve to stderr.
++#define LOG(n) MessageLogger((char *)__FILE__, __LINE__, "native", n).stream()
++#define VLOG(n) LOG_IF(n, false)
++#define LG LOG(INFO)
++#define VLOG_IF(n, condition) LOG_IF(n, false)
++#define VLOG_IS_ON(x) (0)

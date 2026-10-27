@@ -97,7 +97,7 @@ int main(){try{
  for(int i=230;i<236;++i)delayed.addImu({i/416.,{0,0,-9.80665},{0,0,0}});
  require(delayed.imuReadyFor(.56),"available IMU bracket not detected");
  auto retried=delayed.process({.56,texture,0},{.56,right,0});
- require(retried.visual.valid&&delayed.pose().reset_counter==0,"late IMU bracket prevents frame retry");
+ require(retried.observations.size()>=12&&delayed.diagnostics().solves==1&&delayed.pose().reset_counter==0,"late IMU bracket prevents frame retry");
  std::cout<<"PASS midpoint/repropagation/Jacobians, PSD covariance, finite guards, persistent stereo, blackout/recovery, disable/enable, timestamp faults\n";
  return 0;
  }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

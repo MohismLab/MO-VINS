@@ -41,7 +41,7 @@ int main(int argc,char** argv){
   Config cfg=Config::load(argv[1]);cfg.validate();cv::setNumThreads(1);Estimator estimator(cfg);fs::path root=argv[2];
   std::ifstream left(root/"cam0/data.csv"),right(root/"cam1/data.csv"),imu(root/"imu0/data.csv");std::ofstream out(argv[3]);
   if(!left||!right||!imu||!out)throw std::runtime_error("cannot open input CSVs or output trajectory");
-  out<<"timestamp_s,valid,reset_counter,x,y,z,vx,vy,vz,rx,ry,rz,inliers,processing_ms,status\n"<<std::setprecision(16);
+  out<<"timestamp_s,valid,reset_counter,x,y,z,vx,vy,vz,rx,ry,rz,inliers,processing_ms,status,joint_solves,marginalizations,loop_closures\n"<<std::setprecision(16);
   Row l,r,s;bool hl=read(left,l),hr=read(right,r),hi=read(imu,s);unsigned frames=0,valid=0,skipped=0;double total_ms=0,last_imu=-1,last_l=-1,last_r=-1;
   while(hl&&hr){
    if(l.fields.size()!=2||r.fields.size()!=2)throw std::runtime_error("camera CSV requires timestamp,filename");
@@ -62,7 +62,7 @@ int main(int argc,char** argv){
    double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();total_ms+=ms;
    V3 rotation=logSO3(p.R);out<<t<<','<<p.valid<<','<<unsigned(p.reset_counter);
    for(auto vector:{p.p,p.v,rotation})for(int j=0;j<3;++j)out<<','<<(p.valid?vector[j]:NAN);
-   out<<','<<p.inliers<<','<<ms<<','<<csv(estimator.status())<<'\n';++frames;if(p.valid)++valid;
+   out<<','<<p.inliers<<','<<ms<<','<<csv(estimator.status());auto diagnostics=estimator.diagnostics();out<<','<<diagnostics.solves<<','<<diagnostics.marginalizations<<','<<diagnostics.loops<<'\n';++frames;if(p.valid)++valid;
    hl=read(left,l);hr=read(right,r);
   }
   if(!frames)throw std::runtime_error("no synchronized stereo frames");

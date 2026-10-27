@@ -24,7 +24,7 @@ Vision::Vision(const Config& c,const Pose& origin):cfg_(c),origin_(origin){
  cfg_.Rbc=c.Rbc*r1.t();Rwc_=origin.R*M3(cfg_.Rbc);pwc_=origin.p+origin.R*V3(cfg_.tbc);
  matcher_=cv::StereoSGBM::create(0,cfg_.disparities,5,8*25,32*25,1,31,12,50,2,cv::StereoSGBM::MODE_SGBM);
 }
-Vision::Result Vision::process(const Frame& l,const Frame& r){
+Vision::Result Vision::process(const Frame& l,const Frame& r,bool estimate_pose){
  double t=(l.t+r.t)*.5,dt=t-previous_t_;
  if(!std::isfinite(l.t)||!std::isfinite(r.t)||l.t<0||r.t<0||std::abs(l.t-r.t)>cfg_.max_skew)
   throw std::runtime_error("invalid or unsynchronized stereo timestamps");
@@ -52,7 +52,20 @@ Vision::Result Vision::process(const Frame& l,const Frame& r){
   last_depth_t_=t;out.depth_updated=true;
  }
  const auto& tracks=tracker_.process(out.left,out.right,fx_,baseline_);
+ for(const auto& track:tracks){
+  Observation o;o.id=track.id;o.left={(track.point.x-cx_)/fx_,(track.point.y-cy_)/fy_};
+  o.stereo=track.depth>0;o.depth=track.depth;
+  if(o.stereo)o.right={(track.right.x-cx_)/fx_,(track.right.y-cy_)/fy_};
+  if(track.age>1&&dt>0)o.velocity={(track.point.x-track.previous.x)/(fx_*dt),(track.point.y-track.previous.y)/(fy_*dt)};
+  if(track.age>1&&dt>0&&o.stereo&&track.previous_depth>0)o.right_velocity={(track.right.x-track.previous_right.x)/(fx_*dt),(track.right.y-track.previous_right.y)/(fy_*dt)};
+  out.observations.push_back(o);
+ }
  out.visual.t=t;
+ if(!estimate_pose){
+  out.visual.inliers=int(std::count_if(tracks.begin(),tracks.end(),[](const Track& track){return track.depth>0;}));
+  if(out.visual.inliers<12)throw std::runtime_error("insufficient stereo observations");
+  out.visual.valid=true;previous_t_=t;return out;
+ }
  if(!started_){
   int depth_count=0;for(const auto& track:tracks)if(track.depth>0)++depth_count;
   if(depth_count<20)throw std::runtime_error("insufficient stereo features for visual initialization");
