@@ -16,10 +16,11 @@ M3 expSO3(const V3& w);
 V3 logSO3(const M3& r);
 struct Config {
  int width=320,height=200,fps=120,usb_fps=60,depth_fps=30,disparities=64;
+ int uvc_stereo_control=0,uvc_stereo_stream=1,uvc_depth_control=2,uvc_depth_stream=3;
  int capture_width=1280,capture_height=800;
  double max_skew=0.002,imu_offset=0;
  std::string left="/dev/video0",right="/dev/video4",imu="/dev/imu0";
- std::string serial="/dev/ttyGS0",uvc="",params="/userdata/mohism-params.yml";
+ std::string serial="/dev/ttyGS0",uvc_stereo="",uvc_depth="",params="/userdata/mohism-params.yml";
  cv::Mat K1,D1,K2,D2,R,T,Rbc,tbc,Rbi;
  bool calibrated=false;
  static Config load(const std::string& file);
@@ -113,7 +114,10 @@ public:
 class Uvc {
  struct Impl;Impl* impl_;
 public:
- explicit Uvc(const std::string& path,int fps=60);~Uvc();
+ enum class Kind { Stereo, Depth };
+ explicit Uvc(const std::string& path,Kind kind,int fps,int control_interface,int streaming_interface);~Uvc();
+ Uvc(const Uvc&)=delete;Uvc& operator=(const Uvc&)=delete;
+ static std::vector<uint8_t> pack(Kind kind,const cv::Mat& left,const cv::Mat& right,const cv::Mat& depth);
  void publish(const cv::Mat& left,const cv::Mat& right,const cv::Mat& depth);
  struct Stats {uint64_t completed=0,repeated=0;bool streaming=false;};
  Stats stats() const;

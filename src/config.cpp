@@ -10,7 +10,7 @@ Config Config::load(const std::string& path){
  Config c;
  #define READ(x) if(!fs[#x].empty())fs[#x]>>c.x
  READ(width);READ(height);READ(fps);READ(usb_fps);READ(depth_fps);READ(disparities);READ(capture_width);READ(capture_height);
- READ(max_skew);READ(imu_offset);READ(left);READ(right);READ(imu);READ(serial);READ(uvc);READ(params);
+ READ(max_skew);READ(imu_offset);READ(left);READ(right);READ(imu);READ(serial);READ(uvc_stereo);READ(uvc_depth);READ(uvc_stereo_control);READ(uvc_stereo_stream);READ(uvc_depth_control);READ(uvc_depth_stream);READ(params);
  READ(K1);READ(D1);READ(K2);READ(D2);READ(R);READ(T);READ(Rbc);READ(tbc);READ(Rbi);READ(calibrated);
  #undef READ
  if(fs["usb_fps"].empty())c.usb_fps=std::min(c.fps,60);
@@ -20,7 +20,9 @@ Config Config::load(const std::string& path){
  return c;
 }
 void Config::validateProfile()const{
- if(width!=320||height!=200)throw std::runtime_error("USB requires three 320x200 tiles");
+ for(int n:{uvc_stereo_control,uvc_stereo_stream,uvc_depth_control,uvc_depth_stream})if(n<0||n>255)throw std::runtime_error("invalid UVC interface");
+ if(!uvc_stereo.empty()&&uvc_stereo==uvc_depth)throw std::runtime_error("UVC streams require distinct output nodes");
+ if(width!=320||height!=200)throw std::runtime_error("USB requires 320x200 stereo inputs and depth");
  if(fps!=15&&fps!=30&&fps!=60&&fps!=120)throw std::runtime_error("capture fps must be 15/30/60/120");
  if((usb_fps!=15&&usb_fps!=30&&usb_fps!=60)||usb_fps>fps)throw std::runtime_error("USB fps must be 15/30/60 and <= capture fps");
  if((depth_fps!=15&&depth_fps!=30&&depth_fps!=60&&depth_fps!=120)||depth_fps>fps)throw std::runtime_error("depth fps must be 15/30/60/120 and <= capture fps");

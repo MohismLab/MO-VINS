@@ -51,17 +51,17 @@ U-Boot镜像包含SDK rkbin提供的DDR固件和信任固件；尚未在本板�
 4. 检查 `/sys/devices/platform/*cif*/compact_test` 为非compact、低位对齐，采集格式Y10（16位内存容器）和1280×800。当前采集支持single/multi-plane单内存平面，不支持packed RAW10。
 5. 用示波器测GPIO3_D3的已配置 FSIN（当前开发请求120Hz）、两颗相机实际曝光与U3 INT1的416Hz，观察满负载下偏移和抖动。仅两帧软件时间戳接近不能证明曝光同步。
 6. 检查 `/dev/imu0`，在静止时验证加速度模长约9.80665m/s²、陀螺接近零，记录样本间隔和flags。详见IMU ABI文档。
-7. 主机 `lsusb -t` 检查USB高速480M、uvcvideo和cdc_acm；运行host工具读参数/改参数，保存左右与16位深度，反复热插拔验证。
+7. 主机 `lsusb -t` 检查USB高速480M、两个 UVC 功能和两个 CDC ACM；用 `v4l2-ctl --list-formats-ext -d /dev/videoN` 区分 640×200 YUYV 双目和 320×200 Z16 深度。分别测试单路打开、双路打开、不同启停顺序，并检查端点不足或带宽分配错误；运行host工具读参数/改参数，保存左右与16位深度，反复热插拔验证。
 
-服务顺序：`S40mohism-usb` 创建复合设备；`S50mohism-vins` 加载IMU模块、设置FSIN PWM、查找UVC节点，再启动用户态程序。PWM与UVC按sysfs设备身份查找。运行时相机/IMU故障会使位姿失效、约1秒后重连，并等待静止及视觉预热恢复；串口参数服务继续运行。进程启动失败/崩溃仍没有自动重启监督，需修复原因后手动restart。
+服务顺序：`S40mohism-usb` 创建复合设备；`S50mohism-vins` 加载IMU模块、设置FSIN PWM、按 `function_name` 查找 `uvc.stereo` / `uvc.depth` 两个输出节点并读取各自接口号，再启动用户态程序。PWM与UVC按sysfs设备身份查找。运行时相机/IMU故障会使位姿失效、约1秒后重连，并等待静止及视觉预热恢复；串口参数服务继续运行。进程启动失败/崩溃仍没有自动重启监督，需修复原因后手动restart。
 
 ## 标定
 
 默认预览模式不要求IMU初始化。保持 `calibrated: 0`，从原始左右图采集至少15组不同距离、姿态、覆盖整个视野的清晰棋盘对，记录真实方格尺寸。
 
 ```sh
-python host/mohism.py images --video /dev/videoN --frames 200 --output chessboard
-python host/calibrate_stereo.py chessboard --columns 9 --rows 6 --square-metres 0.025 --output stereo-measured.yml
+python host/mohism.py images --stereo /dev/videoN --frames 200 --output chessboard
+python host/calibrate_stereo.py chessboard/stereo --columns 9 --rows 6 --square-metres 0.025 --output stereo-measured.yml
 ```
 
 连续拍摄静止棋盘的200张图不等于200种有效姿态。标定脚本要求配对角点，输出重投影RMS并拒绝大于1px的结果，但这一阈值不是深度精度保证。将测得K1/D1/K2/D2/R/T合并进模板；原生采集1280×800、USB320×200的尺度已在脚本中处理。

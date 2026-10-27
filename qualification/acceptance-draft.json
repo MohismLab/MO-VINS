@@ -8,7 +8,14 @@
     "usb_tile_width": 320,
     "usb_tile_height": 200,
     "usb_fps": 60,
-    "dense_depth_fps": 30
+    "dense_depth_fps": 30,
+    "usb_video_functions": 2,
+    "usb_stereo_format": "YUYV",
+    "usb_stereo_width": 640,
+    "usb_depth_format": "Z16",
+    "usb_depth_width": 320,
+    "usb_depth_height": 200,
+    "usb_depth_fps": 30
   },
   "acceptance_limits_pending": {
     "minimum_valid_vio_fps": null,

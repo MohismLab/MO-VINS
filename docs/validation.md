@@ -63,3 +63,14 @@ U-Boot ARM 构建通过，实际配置启用 MOHISM_USB_CONSOLE、DWC3 gadget、
 内核、ARM 应用和根文件系统交叉编译通过；OpenCV 已完整重编译，实际 CMake cache 为 `ENABLE_NEON=ON`、`ENABLE_FAST_MATH=OFF`，编译参数末尾为 `-O3`，应用 Release 同样使用 `-O3 -fno-fast-math`。没有据此推算或宣称目标 CPU 的加速比例。`scripts/verify-performance.py` 核对各档周期/带宽、非法组合拒绝、两颗传感器的编译 DTB 标志及真实编译选项。
 
 现有网表执行 `scripts/check-hardware-sync.py` 预期失败：INT2、反馈与门控仍未连接，FSIN 尚未分离为建议电压域。EDA Bridge 两次查询无客户端；同步改版未写入 EDA，不能声称已做共同硬件同步或新 DRC 通过。产品门槛与 RT 状态记录于 `docs/product-delivery.md`，未测项保持未完成。
+
+
+## 双 UVC 视频功能（2026-10-28）
+
+0.4.0 将旧的三块 YUYV 打包替换为两个 configfs UVC 功能：双目 640×200 YUYV，深度 320×200 Z16。保留 MAVLink 和调试两个 ACM。默认请求双目 60fps、深度 30fps；这些是描述符请求值。
+
+7 项 CTest、MAVLink 伪串口测试、两个主机解码器测试及描述符文件系统夹具通过。测试覆盖左右字节布局、uint16 深度值、非连续图像内存、非默认接口号的控制请求路由、错误接口拒绝、两路独立统计，以及 Z16 GUID、几何尺寸、帧周期和功能链接顺序。非 PIE ASan/UBSan 的 7 项 CTest 通过。
+
+PREEMPT_RT 内核、ARM 应用与根文件系统重建通过，离线镜像门禁通过。内核新增 Z16 gadget 格式支持，已同步到实际 RT 构建源码；检查同时核对安装后的两个启动脚本和描述符辅助脚本。日志为 `out/dual-uvc-{host,sanitize,kernel,rootfs,package}.log`。
+
+尚未验证物理 USB 枚举、控制器端点数量、主机双路等时带宽分配、实际传输率、启停与热插拔。两路视频没有共享曝光元数据；单独保存的序号和主机到达时间不能用于跨流曝光配对。上述测试不替代实板验收。

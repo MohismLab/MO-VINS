@@ -26,7 +26,8 @@ MOHISM VINS 是一款双目视觉惯性设备。设备在板端计算深度和�
 
 | 接口 | 用途 | 板端节点 |
 | --- | --- | --- |
-| UVC | 左右图像和深度数据 | 启动脚本查找对应的视频节点 |
+| UVC 双目 | 左右并排的灰度图 | 按 `uvc.stereo` 查找视频节点 |
+| UVC 深度 | 独立的 16 位深度图 | 按 `uvc.depth` 查找视频节点 |
 | CDC ACM | MAVLink 参数读写、状态和里程计 | `/dev/ttyGS0` |
 | CDC ACM | Linux 日志和 Shell | `/dev/ttyGS1` |
 
@@ -36,11 +37,14 @@ U-Boot 也提供 USB CDC 调试控制台，进入 Linux 时 USB 会断开并重�
 
 ### 图像格式
 
-当前 UVC 输出为 960×200 YUYV，支持请求 15、30 或 60 fps。每帧分为三个 320×200 区域，依次存放左灰度图、右灰度图和 16 位毫米深度。
+设备提供两个独立的 UVC 视频功能，可分别打开：
 
-这是自定义数据打包格式，需要使用仓库内的主机工具解包。深度区域使用原始字节保存数值，经过 YUYV 转 RGB 或有损压缩会破坏深度数据。工具将左右图保存为 8 位 PNG，深度保存为 16 位 PNG。
+| 视频流 | 格式 | 每帧字节数 | 默认请求帧率 |
+| --- | --- | --- | --- |
+| 双目 | 640×200 YUYV，左、右各占 320×200，色度固定 128 | 256000 | 60fps |
+| 深度 | 320×200 Z16，小端 16 位整数，单位毫米 | 128000 | 30fps |
 
-没有计算深度的帧，其深度区域为零。深度频率与图像输出频率独立，因此并非每个 USB 帧都包含有效深度。具体布局和 MAVLink 消息见 [通信协议](docs/protocol.md)。
+深度值 0 表示无效。主机工具将左右图保存为 8 位 PNG，深度保存为 16 位 PNG，分别写入 `stereo/` 和 `depth/`。两路独立计数，不能按文件名序号认定为同一次曝光；当前还没有共享帧号和曝光时间元数据。深度流保留最近一次计算结果，超过 200ms 没有发布结果时清零。具体格式见 [通信协议](docs/protocol.md)。
 
 ### 主机工具
 
@@ -59,7 +63,7 @@ python host/mohism.py --serial /dev/ttyACM0 set ACC_NOISE 0.15
 python host/mohism.py --serial /dev/ttyACM0 odometry
 
 # 保存左右图和深度
-python host/mohism.py images --video /dev/videoN --output capture --frames 100
+python host/mohism.py images --stereo /dev/videoN --depth /dev/videoM --output capture --frames 100
 ```
 
 ## 算法
@@ -88,7 +92,7 @@ DEPTH_FPS=30
 
 采集和处理使用有界队列，处理落后时保留最新帧。稀疏视觉跟踪与稠密深度分别调度，MAVLink 随新的有效估计发送。运行统计每 5 秒写入 `/run/mohism-status.json`。
 
-USB 60 fps 的当前打包数据量约为 23.04 MB/s，已接近配置的等时端点预算，需要验证双串口并发时的完整率。原生分辨率的高帧率双目图像不能直接通过当前 USB 链路无压缩输出。计算依据和统计口径见 [性能说明](docs/performance.md)。
+双目 60fps 加深度 30fps 的纯图像数据量为 19.2 MB/s；两路均为 60fps 时为 23.04 MB/s。需要验证两个视频流和双串口并发时的完整率。原生分辨率的高帧率双目图像不能直接通过当前 USB 链路无压缩输出。计算依据和统计口径见 [性能说明](docs/performance.md)。
 
 ## 构建
 

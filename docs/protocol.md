@@ -1,24 +1,29 @@
-# USB / MAVLink 协议 v0.3
+# USB / MAVLink 协议 v0.4
 
 ## USB
 
-一个 USB2 High Speed 复合设备；先 UVC（控制接口 0、视频流接口 1），后两个 CDC ACM（MAVLink 控制/数据接口 2/3，调试控制/数据接口 4/5）。开发默认使用 Linux gadget 示例 VID/PID `1d6b:0104`，量产需替换为已分配的标识。USB 60fps 的纯帧数据带宽为 23.04MB/s，包含端点开销后仍须真机确认。
+一个 USB2 High Speed 复合设备内包含两个 UVC 视频功能和两个 CDC ACM 串口。它仍使用一个 USB 地址和一对 VID/PID，不是两个物理 USB 设备。默认开发标识为 `1d6b:0104`，设备版本 `0x0400`；量产需使用已分配标识。
 
-每个 UVC 帧 384000 字节，960×200，YUYV，启动配置选择 15/30/60fps。每行 1920 字节：
+|功能实例|控制/数据接口|图像格式|每帧字节数|
+|---|---|---|---|
+|`uvc.stereo`|0/1|640×200 YUYV，左右各 320×200|256000|
+|`uvc.depth`|2/3|320×200 Z16|128000|
+|`acm.usb0`|4/5|MAVLink|—|
+|`acm.usb1`|6/7|调试控制台|—|
 
-|行内字节|含义|
-|---|---|
-|0–639|320 个左灰度像素，每个 `[gray,128]`|
-|640–1279|320 个右灰度像素，每个 `[gray,128]`|
-|1280–1919|320 个深度值，逐像素 uint16 little endian，单位 mm|
+接口顺序由 configfs 链接顺序确定，应用启动后读取实际 `bInterfaceNumber`，不把第二路的控制请求误当作第一路。板端通过 `/sys/class/video4linux/video*/function_name` 区分两个输出节点。主机必须检查视频捕获能力、USB 接口和格式，不能依赖固定 `/dev/videoN` 编号；驱动还可能创建额外元数据节点。
 
-深度 0 表示无效；稠密深度可单独限频，未计算的新帧整幅深度为零，不复用旧深度；范围 100–65534mm，超范围/无匹配输出 0。标定前为原始双目预览和全零深度；标定后为校正后的双目图与深度。检查 `VIO_VALID`/标定配置判断状态，不要用图像颜色推断深度有效性。普通视频查看器可以看左右部分，但其 RGB 结果不能恢复深度。
+双目每行 1280 字节：前 640 字节为左灰度图 `[gray,128]`，后 640 字节为右灰度图 `[gray,128]`。普通视频查看器可显示左右并排图像。深度不在 YUYV 图像内；独立 Z16 每行 640 字节，每个像素为小端 uint16 毫米值，GUID 的 UVC 字节表示（首四字节 `Z16 `；后十二字节 `00 00 10 00 80 00 00 aa 00 38 9b 71`）。禁止对深度做 RGB 转换或有损编码。
 
-当前 UVC 流没有自定义曝光时间/帧序号元数据，USB 重复帧和延迟须在上板时测量；不能直接把主机收到视频的时间当作曝光时间用于再次融合。
+双目支持请求 15/30/60fps；深度 USB 频率为 `min(USB_FPS, DEPTH_FPS)`，可单独打开、关闭。深度 0 表示无效，计算范围 100–65534mm。未标定、禁用或无法计算深度时输出零深度。正常处理时只发布新计算的深度，不用未计算帧覆盖它；USB 可重复最近结果，超过 200ms 未发布则清零。故障后的已排队缓冲仍可能短暂包含旧数据。
+
+标定前为原始双目预览；标定后为校正图。两个流独立调度，没有共同曝光时间/帧序号元数据，主机收到时间只是到达时间；即使帧率相同也不能按主机序号配对。主机工具分别保存两个目录和 `arrival.csv`，不声称跨流同步。
+
+HS 双目端点每微帧最多 2048 字节，深度端点最多 1024 字节。双目 60fps + 深度 30fps 纯数据 19.2MB/s；双 60fps 为 23.04MB/s。两 UVC 和两 ACM 当前需要 8 个非零 IN 端点、2 个 OUT 端点；控制器端点资源、带宽预留和主机兼容性须在首板确认。Linux Z16 路径已实现；其他系统兼容性尚未实测。不支持按当前配置在 Full Speed 下传输图像。
 
 ## MAVLink
 
-MAVLink common，发送 MAVLink2，可解析 MAVLink1/2。设备端 `/dev/ttyGS0`，主机通常 `/dev/ttyACM0`，须按 USB 接口 2 确认；第二个串口 `/dev/ttyGS1` 专用于内核日志、登录与 Shell，见 [USB 调试串口](usb-debug.md)。波特率标记 115200，CDC USB 实际传输速率由 USB 决定。system=1，component=197（VISUAL_INERTIAL_ODOMETRY）。接受本机目标或广播目标。
+MAVLink common，发送 MAVLink2，可解析 MAVLink1/2。设备端 `/dev/ttyGS0`，主机通常 `/dev/ttyACM0`，须按 USB 接口 4 确认；第二个串口 `/dev/ttyGS1` 专用于内核日志、登录与 Shell，见 [USB 调试串口](usb-debug.md)。波特率标记 115200，CDC USB 实际传输速率由 USB 决定。system=1，component=197（VISUAL_INERTIAL_ODOMETRY）。接受本机目标或广播目标。
 
 支持 HEARTBEAT（约1Hz）、PARAM_REQUEST_LIST、PARAM_REQUEST_READ（名称或索引）、PARAM_SET、PARAM_VALUE、ODOMETRY。所有参数以 REAL32 传输；错误类型、NaN、越界或只读写入均回传当前值。写入磁盘失败也会回滚。
 
@@ -27,7 +32,7 @@ MAVLink common，发送 MAVLink2，可解析 MAVLink1/2。设备端 `/dev/ttyGS0
 |VIO_ENABLE|读写|1|0/1，禁用时清空估计并保持预览；重新启用需要静止初始化|
 |SYNC_MAX_MS|读写|2|0.1–20ms，实际还受标定配置 `max_skew` 的上限约束|
 |VIO_VALID|只读|0|启用输出且最近200ms内估计有效|
-|FW_VERSION|只读|300|版本编码 major×10000+minor×100+patch，即0.3.0|
+|FW_VERSION|只读|400|版本编码 major×10000+minor×100+patch，即0.4.0|
 |ACC_NOISE|读写|0.1|0.001–10，加速度白噪声标准差密度，m/s²/√Hz|
 |GYRO_NOISE|读写|0.01|0.00001–1，角速度白噪声标准差密度，rad/s/√Hz|
 |POSE_POS_SD|读写|0.03|0.001–10m，视觉位置观测标准差下限|

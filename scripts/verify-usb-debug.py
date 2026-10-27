@@ -40,3 +40,10 @@ assert 'ret = gserial_alloc_line_no_console(&opts->port_num);' in acm
 assert 'ret = gserial_alloc_line(&opts->port_num);' not in acm
 assert (root / 'out/artifacts/uboot.img').stat().st_size <= 256 * 1024
 print('PASS built kernel/U-Boot USB console configuration, ELF symbols, DTB, getty, ACM isolation and partition fit')
+# Both the base SDK and the actual RT Kbuild source must accept Z16 output.
+for source in [root/'vendor/luckfox-pico/sysdrv/source/kernel', (k/'source').resolve()]:
+    assert 'V4L2_PIX_FMT_Z16' in (source/'drivers/usb/gadget/function/uvc_v4l2.c').read_text()
+for relative in ['usr/lib/mohism/uvc.sh', 'usr/lib/mohism/performance.sh', 'etc/init.d/S50mohism-vins']:
+    assert (target/relative).read_bytes() == (root/'board/mohism/rootfs-overlay'/relative).read_bytes()
+subprocess.run(['python3', str(root/'tests/usb_descriptor_test.py')], check=True)
+print('PASS dual UVC source integration and installed descriptor/startup helpers')

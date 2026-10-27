@@ -55,4 +55,8 @@ verify(target, 'after')
 # Board wiring and camera mode changes must also reach an already prepared tree.
 shutil.copyfile(root / 'board/mohism/rv1106g3-mohism-vins.dts',
                 target / 'arch/arm/boot/dts/rv1106g3-mohism-vins.dts')
+# Project gadget patches are outside the RT manifest and can change independently.
+for name in ['f_uvc.c', 'f_acm.c', 'uvc_v4l2.c']:
+    relative = Path('drivers/usb/gadget/function') / name
+    shutil.copyfile(sdk / relative, target / relative)
 print(target)

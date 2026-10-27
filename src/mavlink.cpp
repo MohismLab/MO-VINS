@@ -18,7 +18,7 @@ struct Mavlink::Impl {
  struct Pending {std::vector<uint8_t> bytes;uint32_t id;double queued;uint8_t epoch;};
  mavlink_status_t status{};mavlink_message_t rx{};std::deque<Pending> tx;size_t offset=0;int listing=-1;uint8_t epoch=0;
  const char* names[8]={"VIO_ENABLE","SYNC_MAX_MS","VIO_VALID","FW_VERSION","ACC_NOISE","GYRO_NOISE","POSE_POS_SD","POSE_ROT_SD"};
- float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):300.f;}
+ float value(int i,const Pose& p)const{return i>=4?noise[i-4]:i==0?enabled:i==1?skew:i==2?(p.valid&&enabled):400.f;}
  void queue(const mavlink_message_t& m){
   if(m.msgid==MAVLINK_MSG_ID_ODOMETRY){
    for(auto it=tx.begin();it!=tx.end();){

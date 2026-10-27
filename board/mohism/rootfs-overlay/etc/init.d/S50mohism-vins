@@ -21,15 +21,23 @@ case "${1:-start}" in
   echo "$FSIN_PERIOD" > "$PWM/pwm0/period"
   echo 10000 > "$PWM/pwm0/duty_cycle"
   echo 1 > "$PWM/pwm0/enable"
-  UVC=''
+  STEREO='' DEPTH=''
   for node in /sys/class/video4linux/video*; do
-   case "$(cat "$node/name")" in *[Uu][Vv][Cc]*|*gadget*) UVC=/dev/${node##*/};; esac
+   case "$(cat "$node/function_name" 2>/dev/null || true)" in
+    uvc.stereo) [ -z "$STEREO" ] || exit 1;STEREO=/dev/${node##*/};;
+    uvc.depth) [ -z "$DEPTH" ] || exit 1;DEPTH=/dev/${node##*/};;
+   esac
   done
-  [ -n "$UVC" ] || { echo 'UVC output not found' >&2;exit 1; }
-  # Persistent calibration is copied before replacing only the runtime UVC path.
+  [ -n "$STEREO" ] && [ -n "$DEPTH" ] || { echo 'Stereo/depth UVC outputs not found' >&2;exit 1; }
   CAL=/etc/mohism/calibration.yml
   [ ! -f /userdata/calibration.yml ] || CAL=/userdata/calibration.yml
-  sed "s|^uvc:.*|uvc: \"$UVC\"|" "$CAL" > /run/mohism.yml
+  # Replace transport keys even when migrating a persistent pre-0.4 calibration.
+  sed '/^uvc:/d;/^uvc_stereo:/d;/^uvc_depth:/d;/^uvc_.*_control:/d;/^uvc_.*_stream:/d' "$CAL" > /run/mohism.yml
+  printf 'uvc_stereo: "%s"\nuvc_depth: "%s"\n' "$STEREO" "$DEPTH" >> /run/mohism.yml
+  G=/sys/kernel/config/usb_gadget/mohism/functions
+  for kind in stereo depth; do
+   printf 'uvc_%s_control: %s\nuvc_%s_stream: %s\n' "$kind" "$(cat "$G/uvc.$kind/control/bInterfaceNumber")" "$kind" "$(cat "$G/uvc.$kind/streaming/bInterfaceNumber")" >> /run/mohism.yml
+  done
   # Profile is shared with USB descriptors; override any rates in persisted calibration.
   sed -i '/^fps:/d;/^usb_fps:/d;/^depth_fps:/d' /run/mohism.yml
   printf 'fps: %s\nusb_fps: %s\ndepth_fps: %s\n' "$CAPTURE_FPS" "$USB_FPS" "$DEPTH_FPS" >> /run/mohism.yml

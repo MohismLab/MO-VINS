@@ -15,7 +15,8 @@ int main(int argc,char** argv){
  std::signal(SIGINT,signal_handler);std::signal(SIGTERM,signal_handler);
  try{
   Config cfg=Config::load(argv[1]);cv::setNumThreads(1);
-  Mavlink link(cfg.serial,cfg.params);Uvc usb(cfg.uvc,cfg.usb_fps);Estimator estimator(cfg);
+  Mavlink link(cfg.serial,cfg.params);Uvc usb(cfg.uvc_stereo,Uvc::Kind::Stereo,cfg.usb_fps,cfg.uvc_stereo_control,cfg.uvc_stereo_stream);
+  Uvc depth_usb(cfg.uvc_depth,Uvc::Kind::Depth,std::min(cfg.usb_fps,cfg.depth_fps),cfg.uvc_depth_control,cfg.uvc_depth_stream);Estimator estimator(cfg);
   std::unique_ptr<Capture> left,right;std::unique_ptr<Imu> imu;
   Frame l,r;bool have_l=false,have_r=false;
   double camera_retry=0,imu_retry=0,last_frame=monotonic(),last_imu=monotonic();
@@ -23,7 +24,7 @@ int main(int argc,char** argv){
   if(!cfg.calibrated)std::cerr<<"Calibration is not verified; raw stereo preview, invalid depth/VIO\n";
   while(!interrupted){
    double now=monotonic();
-   link.poll(estimator.pose());usb.events();estimator.enable(link.enabled());estimator.setNoise(link.noise());
+   link.poll(estimator.pose());usb.events();depth_usb.events();estimator.enable(link.enabled());estimator.setNoise(link.noise());
    if(!left&&now>=camera_retry){
     try{
      left=std::make_unique<Capture>(cfg.left,cfg.capture_width,cfg.capture_height,cfg.fps);
@@ -61,7 +62,7 @@ int main(int argc,char** argv){
        auto result=estimator.process(l,r);
        double processing_end=monotonic();
        stats.pair((processing_end-processing_start)*1000,(processing_end-(l.t+r.t)*.5)*1000,estimator.pose().valid,result.depth_updated);
-       if(!result.left.empty())usb.publish(result.left,result.right,result.depth);
+       if(!result.left.empty()){usb.publish(result.left,result.right,result.depth);if(result.depth_updated||!estimator.pose().valid)depth_usb.publish(result.left,result.right,result.depth);}
        have_l=have_r=false;last_frame=now;
       }
      }
@@ -72,9 +73,9 @@ int main(int argc,char** argv){
     }
    }
    if(status!=estimator.status()){status=estimator.status();std::cerr<<"estimator: "<<status<<"\n";}
-   link.poll(estimator.pose());usb.events();
+   link.poll(estimator.pose());usb.events();depth_usb.events();
    if(stats.due(monotonic())){auto u=usb.stats();
-    if(!stats.write("/run/mohism-status.json",monotonic(),cfg,u.completed,u.repeated,u.streaming))
+    if(!stats.write("/run/mohism-status.json",monotonic(),cfg,u.completed,u.repeated,u.streaming,depth_usb.stats()))
      std::cerr<<"cannot write runtime statistics\n";
    }
    std::this_thread::sleep_for(std::chrono::milliseconds(1));

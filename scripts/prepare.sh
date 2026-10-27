@@ -18,3 +18,4 @@ python3 scripts/patch_ov9281.py
 python3 scripts/patch-ov9281-highspeed.py
 python3 scripts/patch-usb-console.py
 chmod +x board/mohism/rootfs-overlay/etc/init.d/S40mohism-usb board/mohism/rootfs-overlay/etc/init.d/S50mohism-vins
+python3 scripts/patch-uvc-depth.py

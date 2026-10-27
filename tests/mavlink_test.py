@@ -59,7 +59,7 @@ def main():
     with tempfile.TemporaryDirectory() as directory:
         config = Path(directory) / 'config.yml'
         params = Path(directory) / 'params.yml'
-        config.write_text(f'%YAML:1.0\ncalibrated: 0\nserial: "{os.ttyname(slave)}"\nuvc: ""\nparams: "{params}"\n')
+        config.write_text(f'%YAML:1.0\ncalibrated: 0\nserial: "{os.ttyname(slave)}"\nuvc_stereo: ""\nparams: "{params}"\n')
         def launch():
             return subprocess.Popen(['out/host/mohism-vins', str(config)], stderr=subprocess.DEVNULL)
         process = launch()

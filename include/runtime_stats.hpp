@@ -37,7 +37,7 @@ public:
   if(std::isfinite(age_ms)&&age_ms>=0){if(age_.size()==512)age_.erase(age_.begin());age_.push_back(age_ms);}
  }
  bool due(double now)const{return now-window_>=5;}
- bool write(const std::string& path,double now,const Config& cfg,uint64_t uvc_completed,uint64_t uvc_repeated,bool streaming){
+ bool write(const std::string& path,double now,const Config& cfg,uint64_t uvc_completed,uint64_t uvc_repeated,bool streaming,Uvc::Stats depth={}){
   double elapsed=now-start_;if(!std::isfinite(elapsed)||elapsed<=0)return false;
   window_=now;
   std::string tmp=path+".tmp";std::ofstream out(tmp);
@@ -50,8 +50,10 @@ public:
    <<",\n  \"camera_sequence_restarts\": "<<left_.restarts+right_.restarts
    <<",\n  \"processing_ms_p50\": "<<quantile(processing_,.5)<<",\n  \"processing_ms_p95\": "<<quantile(processing_,.95)
    <<",\n  \"frame_age_ms_p95\": "<<quantile(age_,.95)
-   <<",\n  \"uvc_completed_buffers\": "<<uvc_completed<<",\n  \"uvc_repeated_buffers\": "<<uvc_repeated
-   <<",\n  \"uvc_streaming\": "<<(streaming?"true":"false")<<"\n}\n";
+   <<",\n  \"uvc_stereo_completed_buffers\": "<<uvc_completed<<",\n  \"uvc_stereo_repeated_buffers\": "<<uvc_repeated
+   <<",\n  \"uvc_stereo_streaming\": "<<(streaming?"true":"false")
+   <<",\n  \"uvc_depth_completed_buffers\": "<<depth.completed<<",\n  \"uvc_depth_repeated_buffers\": "<<depth.repeated
+   <<",\n  \"uvc_depth_streaming\": "<<(depth.streaming?"true":"false")<<"\n}\n";
   out.close();if(!out)return false;
   if(std::rename(tmp.c_str(),path.c_str()))return false;
   window_=now;return true;

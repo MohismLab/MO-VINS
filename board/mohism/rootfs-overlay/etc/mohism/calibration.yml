@@ -13,7 +13,8 @@ left: "/dev/video0"
 right: "/dev/video4"
 imu: "/dev/imu0"
 serial: "/dev/ttyGS0"
-uvc: ""
+uvc_stereo: ""
+uvc_depth: ""
 params: "/userdata/mohism-params.yml"
 max_skew: 0.002
 imu_offset: 0.0

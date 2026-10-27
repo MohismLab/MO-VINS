@@ -32,12 +32,15 @@ int main(){try{
  RuntimeStats stats(0);stats.left(100);stats.left(104);stats.left(0);
  stats.right(UINT32_MAX);stats.right(0);
  stats.pair(10,20,true,true);stats.pair(30,40,false,false);
- require(stats.write(path,1,c,60,4,true),"statistics write failed");
+ require(stats.write(path,1,c,60,4,true,{30,2,false}),"statistics write failed");
  std::ifstream input(path);std::string json((std::istreambuf_iterator<char>(input)),{});unlink(path);
  require(json.find("\"left_skipped\": 3")!=std::string::npos,"statistics lost skipped frames");
  require(json.find("\"camera_sequence_restarts\": 1")!=std::string::npos,"sequence wrap mistaken for restart");
  require(json.find("\"processing_ms_p95\": 30.000")!=std::string::npos,"statistics percentile wrong");
  require(json.find("\"valid_vio_fps\": 1.000")!=std::string::npos,"statistics valid throughput wrong");
+ require(json.find("\"uvc_stereo_completed_buffers\": 60")!=std::string::npos,"stereo statistics lost");
+ require(json.find("\"uvc_depth_completed_buffers\": 30")!=std::string::npos,"depth statistics mixed with stereo");
+ require(json.find("\"uvc_depth_streaming\": false")!=std::string::npos,"depth stream status mixed with stereo");
  std::cout<<"PASS 120Hz input timestamps, independent 30Hz dense depth, no stale map and profile limits (synthetic software test)\n";
  return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

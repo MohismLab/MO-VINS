@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory() as work:
     path=Path(work)/'performance.conf'
     def run(capture,usb,depth):
         path.write_text(f'CAPTURE_FPS={capture}\nUSB_FPS={usb}\nDEPTH_FPS={depth}\n')
-        return subprocess.run(['sh','-ec','. "$1"; printf "%s %s %s\\n" "$USB_INTERVAL" "$USB_BITRATE" "$FSIN_PERIOD"', 'profile',str(helper)],
+        return subprocess.run(['sh','-ec','. "$1"; printf "%s %s %s %s %s\\n" "$USB_INTERVAL" "$USB_BITRATE" "$FSIN_PERIOD" "$USB_DEPTH_INTERVAL" "$USB_DEPTH_BITRATE"', 'profile',str(helper)],
                               env={**os.environ,'MOHISM_PERFORMANCE_CONFIG':str(path)},capture_output=True,text=True)
     for capture in [15,30,60,120]:
         for usb in [15,30,60]:
@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory() as work:
                 assert result.returncode!=0
             else:
                 assert result.returncode==0, result.stderr
-                assert list(map(int,result.stdout.split()))==[10000000//usb,384000*8*usb,1000000000//capture]
+                assert list(map(int,result.stdout.split()))==[10000000//usb,256000*8*usb,1000000000//capture,10000000//min(usb,capture,30),128000*8*min(usb,capture,30)]
     for args in [(120,120,30),(0,30,30),(60,60,120),('abc',30,30)]:
         assert run(*args).returncode!=0, args
 fdt=SourceFileLoader('artifact_check',str(root/'scripts/verify-artifacts.py')).load_module()
@@ -33,6 +33,6 @@ print('PASS requested capture/USB/depth timing profiles, bandwidth arithmetic, r
 cache=(root/'out/buildroot/build/opencv4-4.6.0/buildroot-build/CMakeCache.txt').read_text()
 assert 'ENABLE_FAST_MATH:BOOL=OFF' in cache
 assert 'ENABLE_NEON:BOOL=ON' in cache
-flags=(root/'out/buildroot/build/mohism-vins-0.3.0/CMakeFiles/mohism_core.dir/flags.make').read_text()
+flags=(root/'out/buildroot/build/mohism-vins-0.4.0/CMakeFiles/mohism_core.dir/flags.make').read_text()
 assert '-O3' in flags and '-fno-fast-math' in flags
 print('PASS target OpenCV NEON / strict floating-point configuration and VIO release optimization flags')

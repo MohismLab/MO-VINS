@@ -15,7 +15,7 @@ case "${1:-start}" in
   echo "${MOHISM_USB_VID:-0x1d6b}" > "$G/idVendor"
   echo "${MOHISM_USB_PID:-0x0104}" > "$G/idProduct"
   echo 0x0200 > "$G/bcdUSB"
-  echo 0x0201 > "$G/bcdDevice"
+  echo 0x0400 > "$G/bcdDevice"
   echo 0xEF > "$G/bDeviceClass"
   echo 0x02 > "$G/bDeviceSubClass"
   echo 0x01 > "$G/bDeviceProtocol"
@@ -25,28 +25,11 @@ case "${1:-start}" in
   echo MOHISM > "$G/strings/0x409/manufacturer"
   echo 'Stereo VINS + MAVLink + Debug' > "$G/strings/0x409/product"
   mkdir -p "$G/configs/c.1/strings/0x409"
-  echo 'UVC stereo-depth / CDC MAVLink / CDC Debug' > "$G/configs/c.1/strings/0x409/configuration"
+  echo 'UVC stereo / UVC depth / CDC MAVLink / CDC Debug' > "$G/configs/c.1/strings/0x409/configuration"
   echo 250 > "$G/configs/c.1/MaxPower"
-  mkdir -p "$G/functions/uvc.usb0"
-  F=$G/functions/uvc.usb0
-  echo 1 > "$F/streaming_interval"
-  echo 3072 > "$F/streaming_maxpacket"
-  mkdir -p "$F/streaming/uncompressed/u/960x200"
-  echo 16 > "$F/streaming/uncompressed/u/bBitsPerPixel"
-  echo 960 > "$F/streaming/uncompressed/u/960x200/wWidth"
-  echo 200 > "$F/streaming/uncompressed/u/960x200/wHeight"
-  echo "$USB_BITRATE" > "$F/streaming/uncompressed/u/960x200/dwMinBitRate"
-  echo "$USB_BITRATE" > "$F/streaming/uncompressed/u/960x200/dwMaxBitRate"
-  echo 384000 > "$F/streaming/uncompressed/u/960x200/dwMaxVideoFrameBufferSize"
-  echo "$USB_INTERVAL" > "$F/streaming/uncompressed/u/960x200/dwDefaultFrameInterval"
-  echo "$USB_INTERVAL" > "$F/streaming/uncompressed/u/960x200/dwFrameInterval"
-  mkdir -p "$F/streaming/header/h"
-  ln -s ../../uncompressed/u "$F/streaming/header/h/u"
-  ln -s ../../header/h "$F/streaming/class/fs/h"
-  ln -s ../../header/h "$F/streaming/class/hs/h"
-  mkdir -p "$F/control/header/h"
-  ln -s ../../header/h "$F/control/class/fs/h"
-  ln -s ../../header/h "$F/control/class/ss/h"
+  . /usr/lib/mohism/uvc.sh
+  create_uvc uvc.stereo 640 256000 2048 "$USB_INTERVAL" "$USB_BITRATE"
+  create_uvc uvc.depth 320 128000 1024 "$USB_DEPTH_INTERVAL" "$USB_DEPTH_BITRATE"
   mkdir -p "$G/functions/acm.usb0"
   mkdir -p "$G/functions/acm.usb1"
   [ "$(cat "$G/functions/acm.usb0/port_num")" = 0 ] && [ "$(cat "$G/functions/acm.usb1/port_num")" = 1 ] || {
@@ -54,20 +37,24 @@ case "${1:-start}" in
   }
   echo 0 > "$G/functions/acm.usb0/console"
   echo 1 > "$G/functions/acm.usb1/console"
-  # Link UVC first: its streaming interface is 1, as used in src/uvc.cpp.
-  ln -s ../../functions/uvc.usb0 "$G/configs/c.1/01-uvc"
-  ln -s ../../functions/acm.usb0 "$G/configs/c.1/02-acm"
-  ln -s ../../functions/acm.usb1 "$G/configs/c.1/03-debug"
+  # Each UVC owns a control/stream pair. The service reads assigned IDs after bind.
+  ln -s ../../functions/uvc.stereo "$G/configs/c.1/01-stereo"
+  ln -s ../../functions/uvc.depth "$G/configs/c.1/02-depth"
+  ln -s ../../functions/acm.usb0 "$G/configs/c.1/03-acm"
+  ln -s ../../functions/acm.usb1 "$G/configs/c.1/04-debug"
   echo "$UDC_NAME" > "$G/UDC"
   ;;
  stop)
   [ -d "$G" ] || exit 0
   echo '' > "$G/UDC"
   echo 0 > "$G/functions/acm.usb1/console"
-  rm -f "$G/configs/c.1/01-uvc" "$G/configs/c.1/02-acm" "$G/configs/c.1/03-debug"
-  F=$G/functions/uvc.usb0
-  rm -f "$F/streaming/class/fs/h" "$F/streaming/class/hs/h" "$F/control/class/fs/h" "$F/control/class/ss/h" "$F/streaming/header/h/u"
-  rmdir "$F/streaming/header/h" "$F/streaming/uncompressed/u/960x200" "$F/streaming/uncompressed/u" "$F/control/header/h" "$F" "$G/functions/acm.usb1" "$G/functions/acm.usb0"
+  rm -f "$G/configs/c.1/01-stereo" "$G/configs/c.1/02-depth" "$G/configs/c.1/03-acm" "$G/configs/c.1/04-debug"
+  for spec in stereo:640 depth:320; do
+   F=$G/functions/uvc.${spec%:*}
+   rm -f "$F/streaming/class/fs/h" "$F/streaming/class/hs/h" "$F/control/class/fs/h" "$F/control/class/ss/h" "$F/streaming/header/h/u"
+   rmdir "$F/streaming/header/h" "$F/streaming/uncompressed/u/${spec#*:}x200" "$F/streaming/uncompressed/u" "$F/control/header/h" "$F"
+  done
+  rmdir "$G/functions/acm.usb1" "$G/functions/acm.usb0"
   rmdir "$G/configs/c.1/strings/0x409" "$G/configs/c.1" "$G/strings/0x409" "$G"
   ;;
  *) echo "usage: $0 start|stop" >&2;exit 2;;

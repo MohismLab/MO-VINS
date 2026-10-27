@@ -1,50 +1,89 @@
 #!/usr/bin/env python3
-"""Laptop control and lossless stereo/depth unpacking for MOHISM profile v1."""
+"""Laptop control and lossless stereo/depth unpacking for MOHISM dual-UVC profile v2."""
 import argparse
 from pathlib import Path
 import time
 
-def unpack(raw):
+def unpack_stereo(raw):
     import numpy as np
-    data = np.asarray(raw, dtype=np.uint8)
-    if data.size != 384000:
-        raise ValueError(f'Expected 384000 raw YUYV bytes, got {data.size}; disable RGB conversion')
-    data = data.reshape(200, 1920)
-    left = data[:, :640:2].copy()
-    right = data[:, 640:1280:2].copy()
-    depth = data[:, 1280:].copy().view('<u2').reshape(200, 320)
-    return left, right, depth
+    data = np.asarray(raw)
+    if data.dtype != np.uint8 or data.nbytes != 256000:
+        raise ValueError('Expected 256000 raw YUYV bytes; disable RGB conversion')
+    data = data.reshape(200, 1280)
+    return data[:, :640:2].copy(), data[:, 640::2].copy()
+
+
+def unpack_depth(raw):
+    import numpy as np
+    data = np.asarray(raw)
+    if data.dtype not in (np.dtype('uint8'), np.dtype('<u2')) or data.nbytes != 128000:
+        raise ValueError('Expected 128000 raw Z16 bytes')
+    return np.ascontiguousarray(data).view('<u2').reshape(200, 320).copy()
+
 
 def images(args):
     import cv2
-    import numpy as np
-    cap = cv2.VideoCapture(args.video, cv2.CAP_V4L2)
-    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUYV'))
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 200)
-    cap.set(cv2.CAP_PROP_FPS, args.fps)
-    if not cap.set(cv2.CAP_PROP_CONVERT_RGB, 0):
-        raise RuntimeError('Driver/backend cannot disable RGB conversion; depth would be corrupted')
-    if not cap.isOpened():
-        raise RuntimeError('Cannot open UVC capture device')
-    args.output.mkdir(parents=True, exist_ok=True)
-    try:
-        for index in range(args.frames):
-            ok, raw = cap.read()
-            if not ok:
-                raise RuntimeError('USB frame read failed')
-            left, right, depth = unpack(raw)
-            for name, data in [('left', left), ('right', right), ('depth-mm', depth)]:
-                if not cv2.imwrite(str(args.output / f'{index:06d}-{name}.png'), data):
-                    raise RuntimeError('Image write failed')
-            if args.show:
-                preview = np.hstack((left, right, np.minimum(depth/20, 255).astype(np.uint8)))
-                cv2.imshow('left | right | depth preview (PNG retains uint16 mm)', preview)
-                if cv2.waitKey(1) == 27:
-                    break
-    finally:
-        cap.release()
-        cv2.destroyAllWindows()
+    import threading
+    import concurrent.futures
+    if not args.stereo and not args.depth:
+        raise ValueError('Specify --stereo and/or --depth capture device')
+    if args.stereo and args.stereo == args.depth:
+        raise ValueError('Stereo and depth require different devices')
+    if args.frames <= 0:
+        raise ValueError('--frames must be positive')
+    stop = threading.Event()
+
+    def capture(path, kind, fps):
+        cap = cv2.VideoCapture(path, cv2.CAP_V4L2)
+        directory = args.output / kind
+        try:
+            if not cap.isOpened():
+                raise RuntimeError(f'Cannot open {kind} UVC device: {path}')
+            fourcc = 'YUYV' if kind == 'stereo' else 'Z16 '
+            for key, value in [(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc)),
+                               (cv2.CAP_PROP_FRAME_WIDTH, 640 if kind == 'stereo' else 320),
+                               (cv2.CAP_PROP_FRAME_HEIGHT, 200), (cv2.CAP_PROP_FPS, fps),
+                               (cv2.CAP_PROP_CONVERT_RGB, 0)]:
+                if not cap.set(key, value):
+                    raise RuntimeError(f'{kind} backend rejected raw format/property {key}')
+            if int(cap.get(cv2.CAP_PROP_FOURCC)) != cv2.VideoWriter_fourcc(*fourcc):
+                raise RuntimeError(f'{kind} backend negotiated an unexpected pixel format')
+            directory.mkdir(parents=True, exist_ok=True)
+            # Separate counters and host arrival times: these are not exposure timestamps.
+            with (directory / 'arrival.csv').open('w') as log:
+                log.write('index,host_monotonic_ns\n')
+                for index in range(args.frames):
+                    if stop.is_set():
+                        break
+                    ok, raw = cap.read()
+                    arrival = time.monotonic_ns()
+                    if not ok:
+                        raise RuntimeError(f'{kind} USB frame read failed')
+                    if kind == 'stereo':
+                        left, right = unpack_stereo(raw)
+                        frames = [('left', left), ('right', right)]
+                    else:
+                        frames = [('depth-mm', unpack_depth(raw))]
+                    for name, data in frames:
+                        if not cv2.imwrite(str(directory / f'{index:06d}-{name}.png'), data):
+                            raise RuntimeError('Image write failed')
+                    log.write(f'{index},{arrival}\n')
+        except BaseException:
+            stop.set()
+            raise
+        finally:
+            cap.release()
+
+    # Read both independent endpoints concurrently so a depth read cannot stall stereo.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        jobs = []
+        if args.stereo:
+            jobs.append(pool.submit(capture, args.stereo, 'stereo', args.fps))
+        if args.depth:
+            jobs.append(pool.submit(capture, args.depth, 'depth', args.depth_fps))
+        for job in concurrent.futures.as_completed(jobs):
+            job.result()
+
 
 def control(args):
     from pymavlink import mavutil
@@ -94,11 +133,12 @@ def main():
     setting.add_argument('name'); setting.add_argument('value', type=float)
     sub.add_parser('odometry')
     capture = sub.add_parser('images')
-    capture.add_argument('--video', default='/dev/video0')
+    capture.add_argument('--stereo', help='Stereo YUYV capture node')
+    capture.add_argument('--depth', help='Depth Z16 capture node')
+    capture.add_argument('--depth-fps', type=int, choices=[15, 30, 60], default=30)
     capture.add_argument('--output', type=Path, default=Path('capture'))
     capture.add_argument('--fps', type=int, choices=[15, 30, 60], default=60)
     capture.add_argument('--frames', type=int, default=30)
-    capture.add_argument('--show', action='store_true')
     args = parser.parse_args()
     images(args) if args.command == 'images' else control(args)
 
