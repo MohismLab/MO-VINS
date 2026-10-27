@@ -1,0 +1,15 @@
+vendor/
+out/
+.cache/
+*.pyc
+__pycache__/
+.venv/
+capture/
+kernel/*.o
+kernel/*.ko
+kernel/*.mod
+kernel/*.mod.c
+kernel/.*.cmd
+kernel/Module.symvers
+kernel/modules.order
+kernel/.tmp_versions/

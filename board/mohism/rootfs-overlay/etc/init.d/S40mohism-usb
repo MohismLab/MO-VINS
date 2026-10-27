@@ -1,0 +1,65 @@
+#!/bin/sh
+set -eu
+G=/sys/kernel/config/usb_gadget/mohism
+case "${1:-start}" in
+ start)
+  mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config
+  if [ -f "$G/UDC" ] && [ -n "$(cat "$G/UDC")" ]; then exit 0; fi
+  [ ! -d "$G" ] || { echo 'Incomplete mohism gadget exists; run stop first' >&2; exit 1; }
+  set -- /sys/class/udc/*
+  [ -e "$1" ] && [ "$#" -eq 1 ] || { echo 'Expected one USB device controller' >&2; exit 1; }
+  UDC_NAME=${1##*/}
+  mkdir -p "$G"
+  # Linux gadget example VID/PID, for development only; override for your allocated VID/PID.
+  echo "${MOHISM_USB_VID:-0x1d6b}" > "$G/idVendor"
+  echo "${MOHISM_USB_PID:-0x0104}" > "$G/idProduct"
+  echo 0x0200 > "$G/bcdUSB"
+  echo 0x0100 > "$G/bcdDevice"
+  echo 0xEF > "$G/bDeviceClass"
+  echo 0x02 > "$G/bDeviceSubClass"
+  echo 0x01 > "$G/bDeviceProtocol"
+  mkdir -p "$G/strings/0x409"
+  SERIAL=$(cat /proc/device-tree/serial-number 2>/dev/null | tr -d '\000' || true)
+  echo "${SERIAL:-MOHISM-DEVELOPMENT}" > "$G/strings/0x409/serialnumber"
+  echo MOHISM > "$G/strings/0x409/manufacturer"
+  echo 'Stereo VINS + MAVLink' > "$G/strings/0x409/product"
+  mkdir -p "$G/configs/c.1/strings/0x409"
+  echo 'UVC stereo-depth / CDC MAVLink' > "$G/configs/c.1/strings/0x409/configuration"
+  echo 250 > "$G/configs/c.1/MaxPower"
+  mkdir -p "$G/functions/uvc.usb0"
+  F=$G/functions/uvc.usb0
+  echo 1 > "$F/streaming_interval"
+  echo 3072 > "$F/streaming_maxpacket"
+  mkdir -p "$F/streaming/uncompressed/u/960x200"
+  echo 16 > "$F/streaming/uncompressed/u/bBitsPerPixel"
+  echo 960 > "$F/streaming/uncompressed/u/960x200/wWidth"
+  echo 200 > "$F/streaming/uncompressed/u/960x200/wHeight"
+  echo 46080000 > "$F/streaming/uncompressed/u/960x200/dwMinBitRate"
+  echo 46080000 > "$F/streaming/uncompressed/u/960x200/dwMaxBitRate"
+  echo 384000 > "$F/streaming/uncompressed/u/960x200/dwMaxVideoFrameBufferSize"
+  echo 666666 > "$F/streaming/uncompressed/u/960x200/dwDefaultFrameInterval"
+  echo 666666 > "$F/streaming/uncompressed/u/960x200/dwFrameInterval"
+  mkdir -p "$F/streaming/header/h"
+  ln -s ../../uncompressed/u "$F/streaming/header/h/u"
+  ln -s ../../header/h "$F/streaming/class/fs/h"
+  ln -s ../../header/h "$F/streaming/class/hs/h"
+  mkdir -p "$F/control/header/h"
+  ln -s ../../header/h "$F/control/class/fs/h"
+  ln -s ../../header/h "$F/control/class/ss/h"
+  mkdir -p "$G/functions/acm.usb0"
+  # Link UVC first: its streaming interface is 1, as used in src/uvc.cpp.
+  ln -s ../../functions/uvc.usb0 "$G/configs/c.1/01-uvc"
+  ln -s ../../functions/acm.usb0 "$G/configs/c.1/02-acm"
+  echo "$UDC_NAME" > "$G/UDC"
+  ;;
+ stop)
+  [ -d "$G" ] || exit 0
+  echo '' > "$G/UDC"
+  rm -f "$G/configs/c.1/01-uvc" "$G/configs/c.1/02-acm"
+  F=$G/functions/uvc.usb0
+  rm -f "$F/streaming/class/fs/h" "$F/streaming/class/hs/h" "$F/control/class/fs/h" "$F/control/class/ss/h" "$F/streaming/header/h/u"
+  rmdir "$F/streaming/header/h" "$F/streaming/uncompressed/u/960x200" "$F/streaming/uncompressed/u" "$F/control/header/h" "$F" "$G/functions/acm.usb0"
+  rmdir "$G/configs/c.1/strings/0x409" "$G/configs/c.1" "$G/strings/0x409" "$G"
+  ;;
+ *) echo "usage: $0 start|stop" >&2;exit 2;;
+esac

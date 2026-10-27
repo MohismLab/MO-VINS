@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+PID=/run/mohism-vins.pid
+case "${1:-start}" in
+ start)
+  [ ! -e "$PID" ] || exit 0
+  mkdir -p /userdata
+  modprobe mohism_imu
+  for compact in /sys/devices/platform/*cif*/compact_test; do
+   [ ! -f "$compact" ] || echo '0 0 0 0' > "$compact"
+  done
+  # Resolve the PWM and UVC by their device identity; enumeration indices can change.
+  PWM=''
+  for chip in /sys/class/pwm/pwmchip*; do
+   case "$(readlink -f "$chip/device")" in *ff350010*) PWM=$chip;; esac
+  done
+  [ -n "$PWM" ] || { echo 'FSIN PWM1 not found' >&2;exit 1; }
+  [ -d "$PWM/pwm0" ] || echo 0 > "$PWM/export"
+  echo 0 > "$PWM/pwm0/enable"
+  echo 66666667 > "$PWM/pwm0/period"
+  echo 10000 > "$PWM/pwm0/duty_cycle"
+  echo 1 > "$PWM/pwm0/enable"
+  UVC=''
+  for node in /sys/class/video4linux/video*; do
+   case "$(cat "$node/name")" in *[Uu][Vv][Cc]*|*gadget*) UVC=/dev/${node##*/};; esac
+  done
+  [ -n "$UVC" ] || { echo 'UVC output not found' >&2;exit 1; }
+  # Persistent calibration is copied before replacing only the runtime UVC path.
+  CAL=/etc/mohism/calibration.yml
+  [ ! -f /userdata/calibration.yml ] || CAL=/userdata/calibration.yml
+  sed "s|^uvc:.*|uvc: \"$UVC\"|" "$CAL" > /run/mohism.yml
+  start-stop-daemon -S -b -m -p "$PID" -x /usr/bin/mohism-vins -- /run/mohism.yml
+  ;;
+ stop)
+  if [ -f "$PID" ]; then start-stop-daemon -K -p "$PID" || true;rm -f "$PID";fi
+  ;;
+ restart) "$0" stop;"$0" start;;
+ *) exit 2;;
+esac

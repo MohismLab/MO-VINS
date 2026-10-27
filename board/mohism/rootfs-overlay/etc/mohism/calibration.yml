@@ -1,0 +1,65 @@
+%YAML:1.0
+# TEMPLATE ONLY. Replace using real calibration and set calibrated: 1 after verification.
+calibrated: 0
+width: 320
+height: 200
+fps: 15
+capture_width: 1280
+capture_height: 800
+disparities: 64
+left: "/dev/video0"
+right: "/dev/video4"
+imu: "/dev/imu0"
+serial: "/dev/ttyGS0"
+uvc: ""
+params: "/userdata/mohism-params.yml"
+max_skew: 0.002
+imu_offset: 0.0
+# Full native-resolution pinhole intrinsics; translations are metres.
+# R,T: X_right = R * X_left + T. Rbc,tbc: X_body_FRD = Rbc * X_left + tbc.
+# Rbi: measured IMU-axis to body-FRD rotation. imu_offset: add to IRQ time to camera clock.
+K1: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [800., 0., 640., 0., 800., 400., 0., 0., 1.]
+K2: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [800., 0., 640., 0., 800., 400., 0., 0., 1.]
+D1: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [0., 0., 0., 0., 0.]
+D2: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [0., 0., 0., 0., 0.]
+R: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [1., 0., 0., 0., 1., 0., 0., 0., 1.]
+T: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [-0.06, 0., 0.]
+Rbc: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [1., 0., 0., 0., 1., 0., 0., 0., 1.]
+tbc: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [0., 0., 0.]
+Rbi: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [1., 0., 0., 0., 1., 0., 0., 0., 1.]

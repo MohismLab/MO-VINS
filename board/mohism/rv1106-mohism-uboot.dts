@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/dts-v1/;
+#include "rv1106.dtsi"
+#include "rv1106-u-boot.dtsi"
+/ {
+ model = "MOHISM RV1106G3 VINS bootloader";
+ compatible = "mohism,rv1106g3-vins", "rockchip,rv1106";
+ chosen {stdout-path=<&uart2>;u-boot,spl-boot-order=<&sdmmc>;};
+};
+&hw_decompress {u-boot,dm-spl;status="okay";};
+&saradc {u-boot,dm-spl;status="okay";};
+&uart2 {status="okay";pinctrl-names="default";pinctrl-0=<&uart2m1_xfer>;};
+&sdmmc {/delete-property/ pwr-en-gpios;status="okay";bus-width=<4>;max-frequency=<50000000>;no-1-8-v;cap-sd-highspeed;};
+&emmc {status="disabled";};
+&gmac {status="disabled";};
+&rmii_phy {status="disabled";};

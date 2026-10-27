@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_MOHISM_PATH/package/mohism-vins/Config.in"

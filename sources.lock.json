@@ -1,0 +1,16 @@
+{
+  "sdk": {
+    "repository": "https://github.com/LuckfoxTECH/luckfox-pico.git",
+    "commit": "824b817f889c2cbff1d48fcdb18ab494a68f69d1",
+    "archive_sha256": "5bf45ea0bc1cd524bd52b5004e87556a49bb8f579223ee906bd0cd3e5ccae735",
+    "kernel": "sysdrv/source/kernel",
+    "uboot": "sysdrv/source/uboot/u-boot",
+    "rkbin": "sysdrv/source/uboot/rkbin",
+    "buildroot_archive": "sysdrv/tools/board/buildroot/buildroot-2023.02.6.tar.gz"
+  },
+  "mavlink": {
+    "repository": "https://github.com/mavlink/c_library_v2.git",
+    "commit": "6b4243f0e54b42ddb1e65df7a3a5e8c99d15ec1f"
+  },
+  "fsin_reference": "https://github.com/antmicro/tx2-deep-learning-kit-bsp/blob/master/kernel/kernel-4.4/drivers/media/i2c/ov9281_mode_tbls.h"
+}

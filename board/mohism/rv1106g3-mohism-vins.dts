@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/dts-v1/;
+#include "rv1106.dtsi"
+/ {
+ model = "MOHISM RV1106G3 stereo VINS";
+ compatible = "mohism,rv1106g3-vins", "rockchip,rv1106";
+ chosen {
+  stdout-path = "serial2:115200n8";
+  bootargs = "console=ttyS2,115200 root=/dev/mmcblk1p6 rootwait rootfstype=ext4 coherent_pool=1M blkdevparts=mmcblk1:32K(env),512K@32K(idblock),256K(uboot),32M(boot),16M(userdata),256M(rootfs)";
+ };
+ vcc_1v8: vcc-1v8 {compatible="regulator-fixed";regulator-name="VDD1V8_SYS";regulator-min-microvolt=<1800000>;regulator-max-microvolt=<1800000>;regulator-always-on;};
+ vcc_3v3: vcc-3v3 {compatible="regulator-fixed";regulator-name="VDD3V3_SYS";regulator-min-microvolt=<3300000>;regulator-max-microvolt=<3300000>;regulator-always-on;};
+ cam_2v8: cam-2v8 {compatible="regulator-fixed";regulator-name="VDD2V8";regulator-min-microvolt=<2800000>;regulator-max-microvolt=<2800000>;regulator-always-on;};
+ cam_1v8: cam-1v8 {compatible="regulator-fixed";regulator-name="VDD1V8";regulator-min-microvolt=<1800000>;regulator-max-microvolt=<1800000>;regulator-always-on;};
+ cam_1v2: cam-1v2 {compatible="regulator-fixed";regulator-name="VDD1V2";regulator-min-microvolt=<1200000>;regulator-max-microvolt=<1200000>;regulator-always-on;};
+};
+&fiq_debugger {status="disabled";};
+&uart2 {status="okay";pinctrl-names="default";pinctrl-0=<&uart2m1_xfer>;};
+&uart1 {status="okay";pinctrl-names="default";pinctrl-0=<&uart1m0_xfer>;};
+&sdmmc {
+ status="okay";bus-width=<4>;max-frequency=<50000000>;
+ cap-sd-highspeed;no-1-8-v;disable-wp;
+ pinctrl-names="default";pinctrl-0=<&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
+};
+&emmc {status="disabled";};
+&sfc {status="disabled";};
+&gmac {status="disabled";};
+&u2phy {status="okay";};
+&u2phy_otg {status="okay";};
+&usbdrd {status="okay";};
+&usbdrd_dwc3 {status="okay";dr_mode="peripheral";maximum-speed="high-speed";};
+&spi0 {
+ status="okay";pinctrl-names="default";pinctrl-0=<&spi0m0_pins &spi0m0_cs0>;
+ imu@0 {
+  compatible="mohism,lsm6dso-imu";reg=<0>;spi-max-frequency=<1000000>;spi-cpol;spi-cpha;
+  pinctrl-names="default";pinctrl-0=<&imu_int_pin>;
+  interrupt-parent=<&gpio1>;interrupts=<RK_PB0 IRQ_TYPE_EDGE_RISING>;
+ };
+};
+&pinctrl {
+ mohism {
+  imu_int_pin: imu-int-pin {rockchip,pins=<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;};
+ };
+};
+&pwm1 {status="okay";pinctrl-names="default";pinctrl-0=<&pwm1m2_pins>;};
+&i2c3 {
+ status="okay";clock-frequency=<400000>;
+ pinctrl-names="default";pinctrl-0=<&i2c3m2_xfer>;
+ // SID=high on U4, SID=low on U12. Confirm silicon-specific unique addresses
+ // before boot; never use shared/broadcast 0x70 to distinguish cameras.
+ ov9281_left: camera@10 {
+  compatible="ovti,ov9281";reg=<0x10>;
+  clocks=<&cru MCLK_REF_MIPI0>;clock-names="xvclk";
+  pinctrl-names="default";pinctrl-0=<&mipi_refclk_out0>;
+  pwdn-gpios=<&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+  avdd-supply=<&cam_2v8>;dovdd-supply=<&cam_1v8>;dvdd-supply=<&cam_1v2>;
+  rockchip,camera-module-index=<0>;rockchip,camera-module-facing="back";
+  rockchip,camera-module-name="MOHISM-LEFT";rockchip,camera-module-lens-name="calibrate-me";
+  mohism,external-fsin;
+  port {left_out: endpoint {remote-endpoint=<&dphy_left_in>;data-lanes=<1 2>;};};
+ };
+ ov9281_right: camera@60 {
+  compatible="ovti,ov9281";reg=<0x60>;
+  clocks=<&cru MCLK_REF_MIPI1>;clock-names="xvclk";
+  pinctrl-names="default";pinctrl-0=<&mipi_refclk_out1>;
+  pwdn-gpios=<&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+  avdd-supply=<&cam_2v8>;dovdd-supply=<&cam_1v8>;dvdd-supply=<&cam_1v2>;
+  rockchip,camera-module-index=<1>;rockchip,camera-module-facing="back";
+  rockchip,camera-module-name="MOHISM-RIGHT";rockchip,camera-module-lens-name="calibrate-me";
+  mohism,external-fsin;
+  port {right_out: endpoint {remote-endpoint=<&dphy_right_in>;data-lanes=<1 2>;};};
+ };
+};
+&csi2_dphy_hw {status="okay";};
+&csi2_dphy0 {status="disabled";};
+&csi2_dphy1 {
+ status="okay";
+ ports {
+  #address-cells=<1>;#size-cells=<0>;
+  port@0 {reg=<0>;#address-cells=<1>;#size-cells=<0>;
+   dphy_left_in: endpoint@1 {reg=<1>;remote-endpoint=<&left_out>;data-lanes=<1 2>;};
+  };
+  port@1 {reg=<1>;#address-cells=<1>;#size-cells=<0>;
+   dphy_left_out: endpoint@0 {reg=<0>;remote-endpoint=<&csi_left_in>;};
+  };
+ };
+};
+&csi2_dphy2 {
+ status="okay";
+ ports {
+  #address-cells=<1>;#size-cells=<0>;
+  port@0 {reg=<0>;#address-cells=<1>;#size-cells=<0>;
+   dphy_right_in: endpoint@1 {reg=<1>;remote-endpoint=<&right_out>;data-lanes=<1 2>;};
+  };
+  port@1 {reg=<1>;#address-cells=<1>;#size-cells=<0>;
+   dphy_right_out: endpoint@0 {reg=<0>;remote-endpoint=<&csi_right_in>;};
+  };
+ };
+};
+&mipi0_csi2 {
+ status="okay";
+ ports {#address-cells=<1>;#size-cells=<0>;
+  port@0 {reg=<0>;#address-cells=<1>;#size-cells=<0>;csi_left_in: endpoint@1 {reg=<1>;remote-endpoint=<&dphy_left_out>;};};
+  port@1 {reg=<1>;#address-cells=<1>;#size-cells=<0>;csi_left_out: endpoint@0 {reg=<0>;remote-endpoint=<&cif_left_in>;};};
+ };
+};
+&mipi1_csi2 {
+ status="okay";
+ ports {#address-cells=<1>;#size-cells=<0>;
+  port@0 {reg=<0>;#address-cells=<1>;#size-cells=<0>;csi_right_in: endpoint@1 {reg=<1>;remote-endpoint=<&dphy_right_out>;};};
+  port@1 {reg=<1>;#address-cells=<1>;#size-cells=<0>;csi_right_out: endpoint@0 {reg=<0>;remote-endpoint=<&cif_right_in>;};};
+ };
+};
+&rkcif {status="okay";pinctrl-names="default";pinctrl-0=<&mipi_pins>;};
+&rkcif_mipi_lvds {status="okay";port {cif_left_in: endpoint {remote-endpoint=<&csi_left_out>;};};};
+&rkcif_mipi_lvds1 {status="okay";port {cif_right_in: endpoint {remote-endpoint=<&csi_right_out>;};};};
+// Monochrome RAW10 bypasses ISP; direct CIF capture avoids Bayer processing.
+&rkisp {status="disabled";};
+&rkcif_mipi_lvds_sditf {status="disabled";};
+&rkcif_mipi_lvds1_sditf {status="disabled";};
