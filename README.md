@@ -1,14 +1,101 @@
-# MOHISM RV1106G3 双目 VIO 固件
+# MOHISM VINS
 
-本目录包含基于当前嘉立创 **RV1106G3-VINS** 原理图的板级适配、Buildroot 工程、`/dev/imu0` 内核驱动、双目深度/视觉惯性算法、USB UVC + CDC ACM 和 MAVLink 参数服务。
+基于 RV1106G3、两颗 OV9281 和 LSM6DSO 的双目视觉惯性设备。设备在板端计算深度和位姿，通过 USB 向笔记本提供图像、MAVLink 参数配置和调试终端。
 
-**当前是已构建的软件原型，尚未完成真板验收。** 原理图 DRC 返回未通过；相机地址、IO 电压、FSIN/IRQ 时序、DDR 启动及实测标定仍需验证。不能将生成镜像理解为已验证可直接交付的 VINS 产品。完整核查见 [硬件报告](docs/hardware-review.md)。
+仓库包含板级设备树、Buildroot 构建工程、IMU 内核驱动、视觉惯性算法、USB 复合设备配置和主机工具。
 
-构建产物在 `out/artifacts/`：`mohism-sd.img`、`boot.img`、`rootfs.img`、`uboot.img`、DDR/SPL idblock 与 USB 下载 loader、`mohism_imu.ko`、ARM 可执行文件及 `SHA256SUMS`。镜像使用 Rockchip SDK 的 ENV 分区格式，**不是 GPT/FAT 格式**。不要用通用分区工具修改已生成镜像。
+目前硬件尚未生产。软件已完成交叉编译、主机回归测试和镜像离线检查，启动、同步、帧率和精度仍需实板验证。
+
+## 硬件与系统
+
+| 项目 | 配置 |
+| --- | --- |
+| 主控 | Rockchip RV1106G3 |
+| 双目相机 | 2 × OV9281，原生分辨率 1280×800 |
+| IMU | LSM6DSO，SPI 通信，INT1 中断，驱动节点 `/dev/imu0` |
+| USB | 一路 USB 2.0，工作在 Device 模式 |
+| 系统 | SDK Linux 5.10.160 + Buildroot 2023.02.6 |
+| 启动介质 | 当前工程使用 SD 卡 |
+
+内核目前采用普通 Linux 配置，尚未移植 PREEMPT_RT。
+
+双目相机已配置共用 FSIN 外触发。IMU INT1 用于数据就绪中断和时间戳，不能代替相机与 IMU 的共同硬件同步；共同同步电路和驱动仍待完成。当前原理图的 DRC 也尚未通过，电平、相机地址及启动时序需要继续核对。详见 [硬件核对](docs/hardware-review.md) 和 [同步方案](docs/hardware-sync.md)。
+
+## USB 接口
+
+连接笔记本后，固件将 USB 配置为一个复合设备，包含以下接口：
+
+| 接口 | 用途 | 板端节点 |
+| --- | --- | --- |
+| UVC | 左右图像和深度数据 | 启动脚本查找对应的视频节点 |
+| CDC ACM | MAVLink 参数读写、状态和里程计 | `/dev/ttyGS0` |
+| CDC ACM | Linux 日志和 Shell | `/dev/ttyGS1` |
+
+Linux 主机上的串口通常为 `/dev/ttyACM0` 和 `/dev/ttyACM1`，视频节点为 `/dev/videoN`。编号会随连接顺序变化，使用前应确认接口身份。`lsusb` 显示一个物理设备，`lsusb -t` 可查看各接口的驱动。
+
+U-Boot 也提供 USB CDC 调试控制台，进入 Linux 时 USB 会断开并重新枚举。DDR、SPL 等早期启动日志仍需通过 UART2 查看。连接方式见 [USB 调试串口](docs/usb-debug.md)。当前调试镜像的 root 用户未设置密码，发布前需要配置登录认证。
+
+### 图像格式
+
+当前 UVC 输出为 960×200 YUYV，支持请求 15、30 或 60 fps。每帧分为三个 320×200 区域，依次存放左灰度图、右灰度图和 16 位毫米深度。
+
+这是自定义数据打包格式，需要使用仓库内的主机工具解包。深度区域使用原始字节保存数值，经过 YUYV 转 RGB 或有损压缩会破坏深度数据。工具将左右图保存为 8 位 PNG，深度保存为 16 位 PNG。
+
+没有计算深度的帧，其深度区域为零。深度频率与图像输出频率独立，因此并非每个 USB 帧都包含有效深度。具体布局和 MAVLink 消息见 [通信协议](docs/protocol.md)。
+
+### 主机工具
+
+以下示例使用 Linux 主机；请将串口和视频节点替换为实际设备。
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r host/requirements.txt
+
+# 读取和修改参数
+python host/mohism.py --serial /dev/ttyACM0 params
+python host/mohism.py --serial /dev/ttyACM0 set ACC_NOISE 0.15
+
+# 接收状态和里程计
+python host/mohism.py --serial /dev/ttyACM0 odometry
+
+# 保存左右图和深度
+python host/mohism.py images --video /dev/videoN --output capture --frames 100
+```
+
+## 算法
+
+前端从 VINS-Fusion 移植了持续特征跟踪、双向光流检查和双目匹配，IMU 部分实现中点预积分、雅可比、协方差和偏置重传播。后端采用 15 维误差状态滤波器融合视觉与惯性数据。
+
+当前算法是松耦合实现，尚未包含 VINS-Fusion 的紧耦合滑窗优化、边缘化、回环和重定位。代码具备时间、数值和几何检查，以及跟踪丢失、传感器断流后的重新初始化逻辑；恢复后本地坐标原点可能变化，主机应读取 MAVLink `reset_counter`。
+
+默认配置为 `calibrated: 0`，此时只提供原始双目预览和 MAVLink 控制，深度为零，不发送有效里程计。配置模板中的内外参是示例值，使用前必须替换为实测标定结果。
+
+双目标定可使用 `host/calibrate_stereo.py`。相机与 IMU 的外参、轴向变换和时间偏移需要另外标定。完成后将配置放到板端 `/userdata/calibration.yml`，再启用标定状态并重启服务。步骤见 [构建与上板](docs/bringup.md)。
+
+算法来源、合成回归测试和数据回放说明见 [算法移植记录](docs/vins-fusion-port.md)。目前还没有实板轨迹误差、深度精度或长期运行数据。
+
+## 帧率与性能
+
+开发配置位于板端 `/etc/mohism/performance.conf`：
+
+```sh
+CAPTURE_FPS=120
+USB_FPS=60
+DEPTH_FPS=30
+```
+
+以上分别是双目采集、USB 输出和稠密深度的请求频率，不代表实测性能。OV9281 驱动选择 SDK 中已有的 120 fps 模式；最终帧率还取决于外触发、曝光、双路采集、内存带宽和处理负载。
+
+采集和处理使用有界队列，处理落后时保留最新帧。稀疏视觉跟踪与稠密深度分别调度，MAVLink 随新的有效估计发送。运行统计每 5 秒写入 `/run/mohism-status.json`。
+
+USB 60 fps 的当前打包数据量约为 23.04 MB/s，已接近配置的等时端点预算，需要验证双串口并发时的完整率。原生分辨率的高帧率双目图像不能直接通过当前 USB 链路无压缩输出。计算依据和统计口径见 [性能说明](docs/performance.md)。
 
 ## 构建
 
-需要本机 Docker。脚本在容器内以当前用户构建，工程映射到 `/work`，避免中文和空格路径影响上游构建工具。现有 AppImage 环境中的 `LD_LIBRARY_PATH`/`PYTHONHOME` 会导致系统 Git/Python 错误，脚本会清除这些变量。
+构建需要 Docker，以及下载依赖所需的网络访问。SDK、MAVLink 和 VINS-Fusion 的版本固定在 [sources.lock.json](sources.lock.json)。
+
+在仓库根目录执行：
 
 ```sh
 sh scripts/bootstrap.sh
@@ -16,36 +103,54 @@ sh scripts/build.sh environment
 sh scripts/build.sh all
 ```
 
-可分别使用 `host`、`kernel`、`uboot`、`rootfs`、`package`。修改用户态源码后重建本地 Buildroot 包时，先在同一容器内执行 `make ... mohism-vins-dirclean`，避免上游 local-package 的旧 stamp 保留旧源码。详细流程见 [构建与上板](docs/bringup.md)。源仓库和固定提交在 `sources.lock.json`。
+构建在容器内以当前用户运行，仓库挂载到 `/work`，支持宿主机路径包含中文和空格。脚本会清除影响工具运行的 AppImage 环境变量。
 
-## USB 使用
+也可以分步运行：
 
-高速开发配置请求原生双目 120fps、USB 60fps、稠密深度 30Hz；实际性能尚未上板验证。配置与带宽限制见 [高帧率与性能](docs/performance.md)，产品未完成项见 [产品交付基线](docs/product-delivery.md)。
+| 命令 | 内容 |
+| --- | --- |
+| `sh scripts/build.sh host` | 主机编译和回归测试 |
+| `sh scripts/build.sh sanitize` | ASan / UBSan 检查 |
+| `sh scripts/build.sh kernel` | 内核、设备树和 IMU 驱动 |
+| `sh scripts/build.sh uboot` | U-Boot |
+| `sh scripts/build.sh rootfs` | Buildroot 根文件系统 |
+| `sh scripts/build.sh refresh-rootfs` | 修改应用源码后清理本地包并重建根文件系统 |
+| `sh scripts/build.sh package` | 打包镜像并执行离线检查 |
 
-U-Boot 提供独立 USB CDC 调试控制台，进入 Linux 时重新枚举；早期 SPL/DDR 日志使用 UART2。连接方式与验证限制见 [USB 调试串口](docs/usb-debug.md)。
+修改用户态源码后，使用 `refresh-rootfs`，再执行 `package`，避免 Buildroot 复用旧的本地包。
 
-USB 是一个物理复合设备，具有 UVC 和两个 CDC ACM 接口。Linux 主机通常得到 `/dev/ttyACM0`（MAVLink）、`/dev/ttyACM1`（调试日志与 Shell）和一个 UVC `/dev/videoN`；设备号会随其他设备变化。`lsusb` 列出物理设备，`lsusb -t` 显示接口驱动。
+### 构建产物
 
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r host/requirements.txt
-python host/mohism.py --serial /dev/ttyACM0 params
-python host/mohism.py --serial /dev/ttyACM0 set ACC_NOISE 0.15
-python host/mohism.py --serial /dev/ttyACM0 odometry
-python host/mohism.py images --video /dev/videoN --output capture --frames 100
-```
+产物位于 `out/artifacts/`，该目录不提交到 Git。
 
-UVC 几何固定为 **960×200 YUYV，支持请求 15/30/60fps**：三块 320×200 分别传左灰度、右灰度、16 位毫米深度。深度占第三块的全部原始字节，**不能经过 YUYV→RGB 转换或有损压缩**；主机工具关闭颜色转换，保存左右 8 位 PNG 与深度 16 位 PNG。详见 [USB 与 MAVLink 协议](docs/protocol.md)。这是一条自定义打包的标准 UVC 视频流，不是三个独立摄像头节点。
+| 文件 | 内容 |
+| --- | --- |
+| `mohism-sd.img` | 完整 SD 卡镜像 |
+| `boot.img` | 内核与设备树 FIT 镜像 |
+| `uboot.img` | U-Boot 镜像 |
+| `rootfs.img` | 根文件系统 |
+| `mohism_imu.ko` | IMU 内核模块 |
+| `mohism-vins` | ARM 用户态程序 |
+| `mohism-vins-source.tar.gz` | 对应源码归档 |
+| `SHA256SUMS` | 产物校验值 |
 
-## 标定和算法
+目录中还包含 DDR/SPL idblock 和 USB 下载 loader。SD 镜像采用 Rockchip ENV 与固定偏移布局，没有传统 MBR/GPT 分区表。写卡和恢复流程请按 [上板文档](docs/bringup.md) 操作。
 
-默认 `calibrated: 0`：提供原始左右预览、MAVLink 控制和全零无效深度，不输出 ODOMETRY。传感器打不开时控制服务仍可工作，图像保持黑色。标定模板中的数字都是示例，不能作为测量结果。
+## 后续计划
 
-用原始预览采集不同角度/距离的棋盘图像，可运行 `host/calibrate_stereo.py` 求双目参数。相机到 IMU 的旋转/平移、IMU 到机体 FRD 的轴变换、相机与 IMU 的时间偏移还需独立标定；全部验证后将配置写入板端 `/userdata/calibration.yml` 并重启服务。
+无线视频计划使用 RV1106 硬件编码 H.264，通过 SDIO Wi-Fi 向笔记本发送压缩预览，保留现有 USB 接口。RTL8852BS 是候选模块，驱动、供电和接线尚未验证；当前工程还没有接入 Wi-Fi 或 H.264 发送功能。深度数值将与预览视频分开传输。
 
-算法已移植 VINS-Fusion 的持续特征跟踪、双向光流/双目检查和 IMU 中点预积分（含雅可比、协方差及偏置重传播），后端为 15 维误差状态滤波。加入重投影/深度/退化检查、近似观测协方差、严格时间插值及故障自动重新初始化；跟踪丢失或 IMU 断流后禁止有效位姿，保持静止可恢复，新的本地原点通过 MAVLink `reset_counter` 标识。
+近期工作包括共同硬件同步改版、首板启动、相机与 IMU 标定，以及 USB 并发、实际帧率和算法精度测试。完整待办见 [TASKS.md](TASKS.md)，交付要求见 [产品交付基线](docs/product-delivery.md)。
 
-仍是松耦合原型，没有滑窗联合优化、边缘化、回环、重定位或 NPU 加速；连续 VO 误差相关性没有完整建模。未测量目标板帧率、真实轨迹误差、深度精度或热稳定性。移植来源、回归测试及 EuRoC 格式回放方式见 [算法移植与验证](docs/vins-fusion-port.md)。用户态算法按 GPL-3.0 发布，上游版权和修改说明见 [第三方声明](third_party/VINS-Fusion/NOTICE.md)。
+## 文档与许可证
 
-[IMU 驱动 ABI](docs/imu-driver.md) · [硬件核对与阻断项](docs/hardware-review.md) · [实机验收步骤](docs/bringup.md)
+- [构建、写卡与首次启动](docs/bringup.md)
+- [硬件核对](docs/hardware-review.md)
+- [相机与 IMU 同步](docs/hardware-sync.md)
+- [IMU 驱动接口](docs/imu-driver.md)
+- [USB 与 MAVLink 协议](docs/protocol.md)
+- [USB 调试串口](docs/usb-debug.md)
+- [算法移植记录](docs/vins-fusion-port.md)
+- [性能说明](docs/performance.md)
+
+本仓库用户态程序采用 [GPL-3.0](LICENSE)。内核驱动和板级文件的许可见各文件声明，上游代码保留原有许可证。VINS-Fusion 的版权与移植说明见 [第三方声明](third_party/VINS-Fusion/NOTICE.md)。
