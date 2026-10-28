@@ -51,3 +51,5 @@ if [ "${1:-rt}" = rt ]; then
  cp "$DRIVER/mohism_imu.ko" kernel/mohism_imu.ko
  python3 scripts/verify-realtime.py
 fi
+
+python3 scripts/verify-rtc.py "$BUILD"

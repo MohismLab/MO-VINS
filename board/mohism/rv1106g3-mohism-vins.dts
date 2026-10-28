@@ -4,6 +4,7 @@
 / {
  model = "MOHISM RV1106G3 stereo VINS";
  compatible = "mohism,rv1106g3-vins", "rockchip,rv1106";
+ aliases {rtc0 = &external_rtc;};
  chosen {
   stdout-path = "serial2:115200n8";
   bootargs = "console=ttyS2,115200 console=ttyGS1 root=/dev/mmcblk1p6 rootwait rootfstype=ext4 coherent_pool=1M blkdevparts=mmcblk1:32K(env),512K@32K(idblock),256K(uboot),32M(boot),16M(userdata),256M(rootfs)";
@@ -120,3 +121,16 @@
 &rkisp {status="disabled";};
 &rkcif_mipi_lvds_sditf {status="disabled";};
 &rkcif_mipi_lvds1_sditf {status="disabled";};
+
+// External battery-backed wall clock. INT and CLKOUT are not wired.
+&rtc {status="disabled";};
+&i2c1 {
+ status="okay";
+ clock-frequency=<100000>;
+ pinctrl-names="default";
+ pinctrl-0=<&i2c1m0_xfer>;
+ external_rtc: rtc@51 {
+  compatible="nxp,pcf8563";
+  reg=<0x51>;
+ };
+};
