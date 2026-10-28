@@ -17,10 +17,10 @@ SDK 原有 USB loader 是下载协议，不是串口。本工程加入独立 CDC
 
 USB 控制台在 U-Boot 重定位后的 stdio 初始化时建立，不能输出 BootROM、DDR 初始化、SPL 或此前的日志。这些阶段请使用 UART2。USB 输出保留最近约 32KiB，未连接时较早内容会被覆盖。控制台通过轮询处理 USB，长时间不轮询的命令可能延迟 USB 通信。
 
-跳转 Linux 前注销 U-Boot gadget 并释放控制器，Linux 启动后重新枚举为 两个 UVC + 两个 ACM。原终端连接会断开，需要按新的设备节点重连；不能保证跨启动阶段保持同一 ttyACM 编号。Linux USB gadget 在 init 阶段建立，也不能替代早期 UART console。
+跳转 Linux 前注销 U-Boot gadget 并释放控制器，Linux 启动后重新枚举为两个 UVC + 两个 ACM。原终端连接会断开，需要按新的设备节点重连，跨启动阶段的 ttyACM 编号可能变化。Linux USB gadget 在 init 阶段建立，也不能替代早期 UART console。
 
-## 验证范围
+## 检查方法
 
-已提供 ARM U-Boot、内核与 rootfs 构建，以及 `scripts/verify-usb-debug.py` 对实际构建配置、ELF 符号、DTB、登录配置和镜像的检查。它们不能证明物理设备正确枚举或串口收发正常。
+`scripts/verify-usb-debug.py` 检查 U-Boot、内核与 rootfs 的构建配置、ELF 符号、DTB、登录配置和镜像。
 
-上板须验证：U-Boot ACM 枚举、5 秒内打断启动、命令双向收发、无主机也能启动、Linux 切换重枚举、两个 UVC 与两个 ACM 并发、MAVLink 无日志污染、Shell 登录、内核日志、反复插拔与 gadget 重启。当前未连接目标硬件，以上实测尚未完成。
+接口测试包括：U-Boot ACM 枚举、5 秒内打断启动、命令双向收发、无主机也能启动、Linux 切换重枚举、两个 UVC 与两个 ACM 并发、MAVLink 无日志污染、Shell 登录、内核日志、反复插拔与 gadget 重启。

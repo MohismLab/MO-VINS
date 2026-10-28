@@ -25,19 +25,18 @@ Port-specific resolutions:
   `RT_SOFTINT_OPTIMIZATION` option is disabled for this profile.
 - Use a normal field for `sk_peer_lock` on RT: an RT spinlock does not fit into
   the Android ABI's 64-bit reserve. The kernel ABI changes; all modules must be
-  rebuilt. No compatibility with prebuilt non-RT modules is claimed.
+  rebuilt. Rebuild modules against the RT kernel.
 - Add forward declarations for vendor mutex/rwsem trace-hook pointer types and
   make the public rwsem hooks visible with the RT implementation.
 - Compile the system monitor's CPU-hotplug mutex only with CPU hotplug, and
   the cpufreq driver's remote-CPU wake operation only with SMP.
 - Use the RT printk implementation and console printing threads. Vendor hooks
   attached to the replaced old printk/rtmutex paths are not carried into those
-  new paths. No Android hook ABI compatibility is claimed.
+  new paths. Modules using those hooks require adaptation.
 
 The board already disables the FIQ debugger in its device tree. The RT config
 also disables its driver, which uses the old printk dump interface. The regular
 UART console and both USB ACM interfaces remain configured.
 
-An ARM build is evidence of integration, not proof of real-time timing or
-runtime driver correctness. Target boot, lock diagnostics, peripheral stress
-and latency testing are described in `docs/realtime.md` at the repository root.
+Build and latency test commands, lock diagnostics and peripheral stress tests
+are described in `docs/realtime.md` at the repository root.

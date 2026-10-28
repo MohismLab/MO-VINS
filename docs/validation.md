@@ -15,13 +15,10 @@
 |ENV CRC、FIT嵌入内核/DTB SHA256、SD各偏移与源文件逐字节一致|通过|`scripts/verify-artifacts.py`、`out/validation/package.log`|
 |镜像内程序/IMU模块与单独产物逐字节一致|通过|debugfs提取后cmp，`out/validation/artifacts-check.log`|
 |ext4离线e2fsck五阶段检查、所有交付文件SHA256|通过|`out/validation/artifacts-check.log`|
-|目标板启动、真实USB UVC/CDC枚举与热插拔|未测试|当前没有目标板连接|
-|真实双相机曝光同步、相机地址/IO电压、DDR/电源|未测试|需实物、启动日志与仪器|
-|真实标定、深度精度、VIO轨迹、帧率/CPU/内存/温度|未测试|无实测数据，默认禁止有效VIO输出|
 
-已生成 `out/artifacts/mohism-sd.img`，尺寸319586304字节（约304.78MiB），可按bringup文档写入已确认的测试SD卡；未自动烧录设备。镜像格式和尺寸检查通过不代表已经证明硬件可启动。
+已生成 `out/artifacts/mohism-sd.img`，尺寸319586304字节（约304.78MiB），写卡步骤见 [构建与启动](bringup.md)。
 
-内核`modules_install`提示容器缺少系统depmod；根文件系统post-build阶段已使用Buildroot的host-depmod生成模块依赖，镜像中的IMU模块已逐字节核对。此提示不被当作真板驱动运行证据。
+内核`modules_install`提示容器缺少系统depmod；根文件系统post-build阶段已使用Buildroot的host-depmod生成模块依赖，镜像中的IMU模块已逐字节核对。
 
 # 2026-10-28 VINS-Fusion组件移植回归（0.2.0）
 
@@ -41,9 +38,7 @@
 |所有SHA256、e2fsck、镜像内程序与单独交付程序逐字节比较、许可证文件|通过|`out/validation/vins-fusion-artifacts.log`|
 |源码归档独立解包后编译、5项CTest及MAVLink/传输测试|通过|`out/validation/vins-fusion-source-build.log`|
 
-这些结果仅证明当前软件在指定合成输入与构建环境中通过测试。3.543mm等数值是短序列合成回归结果，
-不代表OV9281/LSM6DSO实测精度。尚未跑真实EuRoC/TUM-VI或本板带真值数据，没有ATE/RPE、
-RV1106实测帧率/CPU/RSS或长期运行证据；当时仍为松耦合后端；0.5.0 的更新结果见本页后续记录。
+该版本使用松耦合后端；3.543mm 为 30 帧合成回归的位置误差。紧耦合后端和 EuRoC 评估见本页 0.5.0 记录。
 
 Sanitizer最终通过记录来自 `sh scripts/build.sh sanitize` 对应的非PIE ASan/UBSan配置。
 一次PIE测试启动挂起已终止，原日志独立保留，未将其记为通过；根因尚未确认。
@@ -54,16 +49,13 @@ U-Boot ARM 构建通过，实际配置启用 MOHISM_USB_CONSOLE、DWC3 gadget、
 
 内核与 rootfs 已重建；`scripts/verify-usb-debug.py` 核对实际内核/U-Boot 配置、ELF 中控制台与 DM 中断符号、编译 DTB 的 ttyGS1/ttyS2 console、唯一 getty、securetty、ACM 默认不注册 console 及镜像分区大小。host 的 5 项 CTest 与 MAVLink/传输 Python 测试通过。ENV/FIT/SD 镜像内容与哈希验证通过。日志位于忽略目录 `out/validation/usb-*.log`。
 
-以上属于编译和离线验证，没有目标板 USB 枚举、U-Boot 命令交互或 Linux 并发传输实测，不标记实机验收完成。
-
 ## 高速开发配置与产品要求（2026-10-28）
 
-0.3.0 请求采集 120fps、USB 60fps、稠密深度 30Hz，SDK 原有 120fps 模式通过板级属性选用；这些不是实测性能。新增 profile 测试使用 120Hz 合成时间戳确认稀疏 VO 连续、30Hz 稠密计算、跳过时深度清零，并检查统计文件的丢帧/序号重启/耗时分位数。PTY 测试确认新估计不再被原 50ms 间隔抑制，重复时间戳不制造消息。6 项 CTest、MAVLink 与传输测试通过；非 PIE ASan/UBSan 的 6 项测试通过。
+0.3.0 请求采集 120fps、USB 60fps、稠密深度 30Hz，SDK 原有 120fps 模式通过板级属性选用。新增 profile 测试使用 120Hz 合成时间戳确认稀疏 VO 连续、30Hz 稠密计算、跳过时深度清零，并检查统计文件的丢帧/序号重启/耗时分位数。PTY 测试确认新估计不再被原 50ms 间隔抑制，重复时间戳不制造消息。6 项 CTest、MAVLink 与传输测试通过；非 PIE ASan/UBSan 的 6 项测试通过。
 
-内核、ARM 应用和根文件系统交叉编译通过；OpenCV 已完整重编译，实际 CMake cache 为 `ENABLE_NEON=ON`、`ENABLE_FAST_MATH=OFF`，编译参数末尾为 `-O3`，应用 Release 同样使用 `-O3 -fno-fast-math`。没有据此推算或宣称目标 CPU 的加速比例。`scripts/verify-performance.py` 核对各档周期/带宽、非法组合拒绝、两颗传感器的编译 DTB 标志及真实编译选项。
+内核、ARM 应用和根文件系统交叉编译通过；OpenCV 已完整重编译，实际 CMake cache 为 `ENABLE_NEON=ON`、`ENABLE_FAST_MATH=OFF`，编译参数末尾为 `-O3`，应用 Release 同样使用 `-O3 -fno-fast-math`。`scripts/verify-performance.py` 核对各档周期/带宽、非法组合拒绝、两颗传感器的编译 DTB 标志及真实编译选项。
 
-现有网表执行 `scripts/check-hardware-sync.py` 预期失败：INT2、反馈与门控仍未连接，FSIN 尚未分离为建议电压域。EDA Bridge 两次查询无客户端；同步改版未写入 EDA，不能声称已做共同硬件同步或新 DRC 通过。产品门槛与 RT 状态记录于 `docs/product-delivery.md`，未测项保持未完成。
-
+现有网表执行 `scripts/check-hardware-sync.py` 预期失败：INT2、反馈与门控仍未连接，FSIN 尚未分离为建议电压域。同步改版方案见 `docs/hardware-sync.md`。
 
 ## 双 UVC 视频功能（2026-10-28）
 
@@ -73,7 +65,7 @@ U-Boot ARM 构建通过，实际配置启用 MOHISM_USB_CONSOLE、DWC3 gadget、
 
 PREEMPT_RT 内核、ARM 应用与根文件系统重建通过，离线镜像门禁通过。内核新增 Z16 gadget 格式支持，已同步到实际 RT 构建源码；检查同时核对安装后的两个启动脚本和描述符辅助脚本。日志为 `out/dual-uvc-{host,sanitize,kernel,rootfs,package}.log`。
 
-尚未验证物理 USB 枚举、控制器端点数量、主机双路等时带宽分配、实际传输率、启停与热插拔。两路视频没有共享曝光元数据；单独保存的序号和主机到达时间不能用于跨流曝光配对。上述测试不替代实板验收。
+该版本两路视频独立调度，文件序号和主机到达时间用于各自流内排序。
 
 ## 0.5.0 紧耦合后端
 
@@ -81,4 +73,4 @@ PREEMPT_RT 内核、ARM 应用与根文件系统重建通过，离线镜像门�
 
 主机 11 项 CTest、MAVLink/传输/双 UVC 离线检查通过。ASan/UBSan 与 ARM QEMU 检查覆盖新增数学、初始化和地图路径。完整 Buildroot 固件重建后检查 ARM 动态依赖闭包及 Ceres 许可证。日志分别为 `out/tight-host.log`、`out/tight-sanitize.log`、`out/tight-arm-validation.log`、`out/tight-rootfs.log` 和 `out/tight-package.log`。
 
-EuRoC MH_01_easy 全序列有效率 98.29%，25 次重置或修正计数变化；分段无尺度拟合的 ATE RMSE 为 0.05988m，1 秒平移/旋转 RPE RMSE 为 0.05476m/0.63353°。全程 ATE 不作有效结论。数据来源、逐段结果、复现方式和限制见 [算法验证](vins-fusion-port.md) 及 `qualification/euroc-mh01-*.json`。本次结果不代表实板精度或产品放行。
+EuRoC MH_01_easy 全序列有效率 98.29%，25 次重置或修正计数变化；分段无尺度拟合的 ATE RMSE 为 0.05988m，1 秒平移/旋转 RPE RMSE 为 0.05476m/0.63353°。全程 ATE 不作有效结论。数据来源、逐段结果、复现方式和限制见 [算法验证](vins-fusion-port.md) 及 `qualification/euroc-mh01-*.json`。

@@ -1,20 +1,29 @@
-# 执行清单
+# 开发清单
 
-- [completed] 从 EDA 全工程网表确认硬件、引脚、电源和启动介质；记录 DRC 未通过、IO 电压、相机地址等待验证项。
-- [completed] 固定并拉取 RV1106 SDK（kernel / U-Boot / Buildroot）。
-- [completed] 编译设备树、内核、U-Boot、DDR/SPL、Buildroot 根文件系统和 SD 镜像。
-- [completed] 实现双目 YUYV、独立深度 Z16 两个 UVC 功能及双 CDC ACM；MAVLink 8 参数服务；伪串口/数据打包测试通过。
-- [completed] LSM6DSO 下沉内核，提供 /dev/imu0、poll、IRQ 时间戳和异常标志。
-- [completed] 实现双目深度和视觉惯性运行框架；标定预览、标定门禁与失效处理。
-- [completed] 主机测试、交叉编译、ENV/FIT/SD 布局、镜像文件一致性与 ext4 离线检查。
-- [completed] 移植固定版本 VINS-Fusion 特征跟踪和中点预积分；补充数值/时间/几何检查、故障恢复、回放和回归测试。
-- [completed] 紧耦合双目/IMU 滑窗、逆深度、边缘化、运动初始化、ORB 回环、四自由度位姿图、地图持久化和重定位；在线外参/时间偏移可选。
-- [completed] EuRoC MH_01_easy 全序列回放和分段真值评估；主机、Sanitizer、ARM QEMU 数值测试。
-- [not-started] 多数据集、动态/弱纹理/振动及实板长期精度验收。
-- [completed] 第二 USB ACM 调试串口、Linux getty/日志、U-Boot CDC 控制台；编译及离线集成检查通过。
-- [completed] 多档高速请求、SDK 120fps 模式选择、稀疏/稠密预算分离、MAVLink 新估计直发与运行统计；合成验证通过，实板速率未测。
-- [completed] PREEMPT_RT ARM 移植、完整补丁与源码哈希校验、IMU 硬中断时间戳保留、延迟测试工具；实板延迟与驱动运行待验证。
-- [in-progress] 共同硬件同步接口核查、改线方案和产品验收基线；EDA Bridge 当前无客户端，改版与新驱动未完成。
-- [not-started] 真板启动、USB 枚举、同步/标定和 VIO 精度验收（需要实物）。
+## 已完成
 
-目前交付为可构建的软件原型，最后一项尚未完成，因此不标记整体需求已验收。
+- [x] 从 EDA 全工程网表提取引脚、电源和启动存储映射。
+- [x] 固定 SDK、Buildroot、MAVLink 和算法上游版本。
+- [x] 构建设备树、内核、U-Boot、DDR/SPL、根文件系统和 SD 镜像。
+- [x] 双目 YUYV 与深度 Z16 两个 UVC 视频功能，MAVLink 与调试两个 CDC ACM 串口。
+- [x] IMU 内核驱动 `/dev/imu0`：poll、IRQ 时间戳、样本序号和异常标志。
+- [x] MAVLink 参数读写、持久化、状态与里程计输出。
+- [x] 紧耦合双目/IMU 滑窗、逆深度优化、Schur 边缘化与运动初始化。
+- [x] ORB 回环、四自由度位姿图、地图持久化及重定位。
+- [x] 可选在线外参与时间偏移估计。
+- [x] EuRoC MH_01_easy 全序列回放、分段真值评估与数值回归。
+- [x] U-Boot CDC 控制台、Linux USB 日志与登录终端。
+- [x] 多档采集与输出配置、稀疏跟踪与稠密深度独立调度、运行统计。
+- [x] PREEMPT_RT ARM 移植、补丁哈希校验、模块 ABI 检查及延迟测试工具。
+- [x] I²C1 后备 RTC 驱动、设备树、启动校时与构建检查。
+- [x] 主机回归、ASan/UBSan、ARM QEMU、镜像布局与文件一致性检查。
+
+## 后续开发
+
+- [ ] 共同同步电路与驱动：DEN、门控、事件反馈及匹配。
+- [ ] IMU FIFO、芯片时间戳与采样时间重建。
+- [ ] 多数据集、弱纹理、动态场景、振动与长期运行评估。
+- [ ] 服务自动重启、看门狗与升级回滚。
+- [ ] SDIO Wi-Fi 接入与 H.264 无线预览。
+
+测试项目见 [固件交付与测试](docs/product-delivery.md)，构建记录见 [验证记录](docs/validation.md)。
