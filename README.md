@@ -1,5 +1,7 @@
 # MOHISM VINS
 
+**原创硬件与文档仅供学术交流和非商业用途，采用 CC BY-NC-SA 4.0，未经另行授权禁止商用。软件采用 GPL-3.0，允许商业使用。** 具体范围见 [许可说明](LICENSING.md)。
+
 MOHISM VINS 是一款双目视觉惯性设备。设备在板端计算深度和位姿，通过 USB 向笔记本提供图像、MAVLink 参数配置和调试终端。
 
 仓库包含板级设备树、Buildroot 构建工程、IMU 内核驱动、视觉惯性算法、USB 复合设备配置和主机工具。
@@ -159,4 +161,4 @@ sh scripts/build.sh all
 - [性能说明](docs/performance.md)
 - [实时内核](docs/realtime.md)
 
-本仓库用户态程序采用 [GPL-3.0](LICENSE)。内核驱动和板级文件的许可见各文件声明，上游代码保留原有许可证。VINS-Fusion 的版权与移植说明见 [第三方声明](third_party/VINS-Fusion/NOTICE.md)。
+原创硬件与文档采用 [CC BY-NC-SA 4.0](LICENSES/CC-BY-NC-SA-4.0.txt)，用户态软件采用 [GPL-3.0](LICENSE)。内核驱动和板级文件按各文件声明授权，第三方内容保留原有许可证。适用范围见 [许可说明](LICENSING.md)，VINS-Fusion 来源见 [第三方声明](third_party/VINS-Fusion/NOTICE.md)。
