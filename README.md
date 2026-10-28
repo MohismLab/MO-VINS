@@ -6,6 +6,8 @@ MOHISM VINS 是一款双目视觉惯性设备。设备在板端计算深度和�
 
 仓库包含板级设备树、Buildroot 构建工程、IMU 内核驱动、视觉惯性算法、USB 复合设备配置和主机工具。
 
+![MOHISM VINS 产品渲染图](images/01_MoSense_Hero.png)
+
 ## 硬件与系统
 
 | 项目 | 配置 |
