@@ -8,6 +8,38 @@ MOHISM VINS 是一款双目视觉惯性设备。设备在板端计算深度和�
 
 ![MOHISM VINS 产品渲染图](images/01_MoSense_Hero.png)
 
+**USB 接口视角**
+
+![MOHISM VINS USB 接口视角](images/02_MoSense_USB.png)
+
+**散热结构**
+
+![MOHISM VINS 散热结构](images/03_MoSense_Heatsink.png)
+
+**接口布局**
+
+![MOHISM VINS 接口布局](images/04_MoSense_Interfaces.png)
+
+**结构爆炸图**
+
+![MOHISM VINS 结构爆炸图](images/05_MoSense_Exploded.png)
+
+**USB 接口细节**
+
+![MOHISM VINS USB 接口细节](images/06_MoSense_USB_Detail.png)
+
+**散热鳍片轮廓**
+
+![MOHISM VINS 散热鳍片轮廓](images/07_MoSense_Fin_Outline.png)
+
+**螺母安装槽**
+
+![MOHISM VINS 螺母安装槽](images/08_MoSense_Nut_Pockets.png)
+
+**产品预览**
+
+![MOHISM VINS 产品预览](images/MoSense_product_preview.png)
+
 ## 硬件与系统
 
 | 项目 | 配置 |
