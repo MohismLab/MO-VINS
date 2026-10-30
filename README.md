@@ -185,6 +185,8 @@ sh scripts/build.sh all
 
 ## 文档与许可证
 
+- [产品规格书（PDF）](docs/pdf/MOHISM-VINS-specification.pdf)
+- [使用手册（PDF）](docs/pdf/MOHISM-VINS-user-manual.pdf)
 - [构建、写卡与首次启动](docs/bringup.md)
 - [硬件核对](docs/hardware-review.md)
 - [相机与 IMU 同步](docs/hardware-sync.md)

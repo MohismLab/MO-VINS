@@ -1,0 +1,20 @@
+MOHISM VINS PDF documents
+
+Sources:
+  specification.tex   Product specification
+  user-manual.tex     User manual
+  common.tex          Shared typography and cover layout
+
+Build from the repository root with Docker:
+  docker build -t mohism-docs -f docs/latex/Dockerfile .
+  docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" mohism-docs
+
+Or with XeLaTeX and the listed fonts installed locally:
+  sh docs/latex/build.sh
+
+Output:
+  docs/pdf/MOHISM-VINS-specification.pdf
+  docs/pdf/MOHISM-VINS-user-manual.pdf
+
+Temporary logs and auxiliary files: out/latex/
+License: CC BY-NC-SA 4.0; see LICENSING.md in the repository root.

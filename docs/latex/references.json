@@ -1,0 +1,26 @@
+{
+  "document_date": "2026-10-30",
+  "firmware_version": "0.5.0",
+  "source_commit": "03d9960f61c812430ff45309f3ac49e3a8658a1b",
+  "mechanical_reference": {
+    "project": "MoSense_Enclosure.FCStd",
+    "files": {
+      "编辑说明.txt": "40d8b817031cd90c2c1aebcbe663871b78ed31c550f28d65b783b582c2bae1ed",
+      "紧固与加工公差.txt": "9b866a48a9628d9188a50849443c03b099392b4038b072029290a805ab0670a8",
+      "geometry-validation.json": "733cbe6d5fc574001bd6fb1c0b8b68a8078797295c9dd9d311e6f97eae51142a",
+      "fastening-validation.json": "0ed1ba30e205bf592ab099121b135bcef201cb13bf6b40fff680b730ccd92aa2",
+      "port-validation.json": "5db535c3197803bd98af6f471d3744d0ef53335b5e373969feec9990301650e2",
+      "MoSense_Enclosure.FCStd": "b0752d219d58965bd5d2f74c3151d6f8afc05048e4aae21d3896b9e1ebbfbad1"
+    }
+  },
+  "software_references": [
+    "docs/protocol.md",
+    "docs/bringup.md",
+    "docs/performance.md",
+    "docs/imu-driver.md",
+    "docs/realtime.md",
+    "docs/hardware/rtc.md",
+    "board/mohism/rootfs-overlay/etc/mohism/calibration.yml"
+  ],
+  "note": "PDFs describe the 0.5.0 release interface; pending calibration acquisition changes are excluded."
+}

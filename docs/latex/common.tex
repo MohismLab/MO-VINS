@@ -1,0 +1,50 @@
+\documentclass[UTF8,a4paper,10pt,fontset=none]{ctexart}
+\usepackage[margin=20mm,headheight=15pt,footskip=12mm]{geometry}
+\setCJKmainfont{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{DejaVu Sans Mono}[Scale=0.82]
+\usepackage{amsmath,amssymb,graphicx,booktabs,tabularx,array,longtable,xcolor,fancyhdr,enumitem,listings,xurl,hyperref,lastpage}
+\definecolor{brand}{HTML}{176B78}
+\definecolor{ink}{HTML}{25333D}
+\definecolor{pale}{HTML}{F0F5F6}
+\hypersetup{colorlinks=true,linkcolor=brand,urlcolor=brand,pdfauthor={PulsarV},bookmarksnumbered=true}
+\graphicspath{{../../images/}}
+\ctexset{section={format=\Large\sffamily\bfseries\color{brand}},subsection={format=\large\sffamily\bfseries\color{ink}}}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\sffamily MOHISM VINS}
+\fancyhead[R]{\small\sffamily\DocName}
+\fancyfoot[L]{\small\sffamily\DocCode\enspace |\enspace Rev. 1.0}
+\fancyfoot[R]{\small\thepage\ /\pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\setcounter{tocdepth}{1}
+\setlength{\parindent}{0pt}\setlength{\parskip}{6pt}
+\renewcommand{\arraystretch}{1.38}
+\setlist{nosep,leftmargin=1.6em,topsep=4pt}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\code}[1]{\nolinkurl{#1}}
+\setlength{\emergencystretch}{2em}
+\newcommand{\note}[1]{\par\smallskip\noindent\colorbox{pale}{\parbox{\dimexpr\linewidth-2\fboxsep}{#1}}\par\smallskip}
+\lstset{basicstyle=\ttfamily\footnotesize,backgroundcolor=\color{pale},frame=none,breaklines=true,columns=fullflexible,keepspaces=true,showstringspaces=false,xleftmargin=6pt,xrightmargin=6pt,aboveskip=7pt,belowskip=7pt}
+\newcommand{\cover}[2]{
+\begin{titlepage}
+{\sffamily\color{brand}\Large MOHISM\hfill\small TECHNICAL DOCUMENTATION}\par
+\vspace{16mm}
+{\sffamily\bfseries\fontsize{34}{42}\selectfont MOHISM VINS}\par
+\vspace{3mm}{\sffamily\fontsize{24}{32}\selectfont\DocName}\par
+\vspace{4mm}{\color{brand}\large 双目视觉惯性设备}\par
+\vspace{10mm}
+\includegraphics[width=\linewidth]{#1}\par
+\vfill
+\begin{tabularx}{\linewidth}{@{}lY@{}}\toprule
+文档编号 & \DocCode\\
+文档版本 & 1.0\quad /\quad 2026-10-30\\
+固件基线 & 0.5.0，源码基线 \code{03d9960}\\
+作者 & PulsarV\quad\href{mailto:zhijiatao@outlook.com}{zhijiatao@outlook.com}\\
+内容 & #2\\\bottomrule
+\end{tabularx}
+\vspace{6mm}
+{\footnotesize 原创硬件与文档采用 CC BY-NC-SA 4.0；软件许可按仓库 \code{LICENSING.md}。}
+\end{titlepage}}
